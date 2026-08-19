@@ -285,10 +285,14 @@
       return v;
     }
     try { var s = localStorage.getItem(k); if (s !== null) return s; } catch (e) {}
-    return mem[k] || "";
+    return mem[k]; // undefined when the key was never set, "" when explicitly cleared
   }
 
-  /* ---------- proxy ---------- */
+  /* ---------- proxy ----------
+     Pre-filled with this deployment's own worker so a fresh browser/device
+     routes through it without the Connection box needing to be touched.
+     Clearing the box and leaving it blank opts back out to "no proxy". */
+  var DEFAULT_PROXY = "https://all-downloader.henrikuaye.workers.dev";
   var proxy = "";
   function setProxy(v) {
     proxy = (v || "").trim();
@@ -680,7 +684,9 @@
 
   /* boot: query params, saved proxy, share target */
   var q = new URLSearchParams(location.search);
-  var saved = q.get("proxy") || store("proxy");
+  var qProxy = q.get("proxy");
+  var stored = store("proxy");
+  var saved = qProxy != null ? qProxy : (typeof stored === "undefined" ? DEFAULT_PROXY : stored);
   proxyEl.value = saved || "";
   setProxy(saved);
 

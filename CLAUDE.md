@@ -36,6 +36,8 @@ If Twitter changes the response shape, `pickVariants()` and `lookup()` are the o
 
 `via()` wraps every outbound URL when a proxy is configured. The proxy is stored in localStorage, but reads and writes go through a `store()` helper wrapped in try/catch so private-mode browsers degrade to memory instead of throwing.
 
+`DEFAULT_PROXY` in `index.html` pre-fills the Connection box with this deployment's own worker, so a fresh browser/device routes through it without anyone touching Connection. The boot logic distinguishes "never saved anything" (localStorage key absent → `store()` returns `undefined` → falls back to `DEFAULT_PROXY`) from "explicitly cleared" (key present but `""` → respected as "no proxy"), so clearing the box is a real, persistent opt-out rather than snapping back to the default on reload. If this fork points at a different worker, update `DEFAULT_PROXY` to match.
+
 ## Conventions
 
 - No frameworks, no build tooling, no npm. If a change seems to need a dependency, question it first.

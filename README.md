@@ -57,6 +57,8 @@ Future changes to `worker.js` need to be copy-pasted into Cloudflare's editor ag
 
 The worker only forwards requests to Twitter's own hosts (`cdn.syndication.twimg.com`, `video.twimg.com`, `pbs.twimg.com`, `abs.twimg.com`), Instagram/Facebook's post-page domains (`instagram.com`, `facebook.com`, `m.facebook.com`, `fb.watch`), and their CDN subdomains (`*.cdninstagram.com`, `*.fbcdn.net`) — see `isAllowed()` in `worker.js` — so nobody who finds the URL can use it as a general-purpose proxy. The free plan covers 100,000 requests a day.
 
+Once you've got a worker deployed, you don't have to paste its address in on every browser/device: set `DEFAULT_PROXY` near the top of `index.html`'s script to your worker's URL, and it's used automatically whenever the Connection box hasn't been explicitly set (or explicitly cleared) on that browser.
+
 ## How it works
 
 **Twitter/X:** Grab pulls the tweet ID out of whatever you paste, then asks the same public endpoint Twitter's own embed widgets use for that post's data. That comes back with every MP4 rendition Twitter encoded, so the app lists them by resolution and bitrate instead of guessing which one you want.
