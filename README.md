@@ -11,6 +11,7 @@ A paste-a-link video downloader for Twitter/X, Instagram, and Facebook that inst
 | `sw.js` | Service worker so it opens offline |
 | `icon-*.png` | Home screen icons |
 | `worker.js` | Optional Cloudflare Worker that fixes CORS and fetches post pages |
+| `wrangler.toml` | Config so Cloudflare can deploy `worker.js` straight from this repo |
 
 ## 1. Put it online
 
@@ -36,10 +37,23 @@ To test locally first: `python3 -m http.server 8000` and open `http://localhost:
 
 Browsers won't let a page on your domain read responses from Twitter, Instagram, or Facebook's servers unless they opt in, and they mostly don't. Without the proxy, lookups may fail and saves will fall back to opening the video in a new tab for a long-press save. The proxy makes both work properly, including the download progress bar — and for Instagram/Facebook it's what fetches the post page itself, not just the media.
 
-1. Sign in at dash.cloudflare.com → Workers & Pages → Create → Worker.
+**Option A — connect the repo (auto-redeploys on every push):**
+
+1. Sign in at dash.cloudflare.com → Workers & Pages → Create → **Connect to Git** → pick this repo.
+2. Cloudflare reads `wrangler.toml` and deploys `worker.js` as the Worker automatically — no build command needed.
+3. Copy the address it gives you (`https://something.workers.dev`).
+4. In Grab, open **Connection** and paste it in. It's remembered.
+
+From then on, any change to `worker.js` that gets pushed to `main` redeploys the proxy on its own.
+
+**Option B — paste it in by hand (no auto-updates):**
+
+1. Sign in at dash.cloudflare.com → Workers & Pages → Create → **Worker** (not "Connect to Git").
 2. Replace the default code with the contents of `worker.js`. Deploy.
 3. Copy the address it gives you (`https://something.workers.dev`).
 4. In Grab, open **Connection** and paste it in. It's remembered.
+
+Future changes to `worker.js` need to be copy-pasted into Cloudflare's editor again by hand.
 
 The worker only forwards requests to Twitter's own hosts (`cdn.syndication.twimg.com`, `video.twimg.com`, `pbs.twimg.com`, `abs.twimg.com`), Instagram/Facebook's post-page domains (`instagram.com`, `facebook.com`, `m.facebook.com`, `fb.watch`), and their CDN subdomains (`*.cdninstagram.com`, `*.fbcdn.net`) — see `isAllowed()` in `worker.js` — so nobody who finds the URL can use it as a general-purpose proxy. The free plan covers 100,000 requests a day.
 

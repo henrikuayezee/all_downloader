@@ -10,6 +10,7 @@ Everything runs in the browser. There is no backend except an optional CORS prox
 - `manifest.webmanifest` — install metadata plus an Android `share_target` that feeds shared links in as `?url=` / `?text=`.
 - `sw.js` — caches the app shell only. It ignores cross-origin requests entirely so it never sits between the app and the platform it's talking to.
 - `worker.js` — Cloudflare Worker CORS proxy. Deployed separately, not part of the static site.
+- `wrangler.toml` — tells Cloudflare's Git integration that `worker.js` is the Worker entry point, so connecting this repo to a Cloudflare Worker project auto-deploys on push instead of needing a manual copy-paste into their dashboard editor.
 - `icon-*.png` — generated, not hand-drawn. Regenerate with Pillow if the mark changes.
 
 ## Two-tier extraction: Twitter's API vs Instagram/Facebook's OG tags
