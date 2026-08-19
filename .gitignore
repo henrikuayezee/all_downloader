@@ -1,0 +1,18 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Cloudflare Wrangler (if you deploy the worker from this repo)
+.wrangler/
+.dev.vars
+node_modules/
+
+# Local notes
+scratch/
+*.local
