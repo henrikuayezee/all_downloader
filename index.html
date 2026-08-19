@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grab — video downloader</title>
+<meta name="description" content="Paste a post link, pick a quality, save the video.">
+<meta name="theme-color" content="#0C1216">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --ink:#0C1216;
+    --panel:#141F26;
+    --panel-2:#0F1A20;
+    --line:#22333D;
+    --bone:#E6EDF1;
+    --dim:#7C93A1;
+    --signal:#F2A413;
+    --bad:#E0674A;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--ink);
+    color:var(--bone);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding:
+      calc(env(safe-area-inset-top) + 28px)
+      calc(env(safe-area-inset-right) + 18px)
+      calc(env(safe-area-inset-bottom) + 40px)
+      calc(env(safe-area-inset-left) + 18px);
+    max-width:620px;
+    margin:0 auto;
+  }
+  ::selection{background:var(--signal);color:var(--ink)}
+  :focus-visible{outline:2px solid var(--signal);outline-offset:2px;border-radius:4px}
+
+  /* ---- masthead ---- */
+  .mark{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:.34em;
+    text-transform:uppercase;
+    font-weight:700;
+    margin:0;
+    display:flex;align-items:center;gap:10px;
+  }
+  .mark i{
+    width:13px;height:13px;display:block;flex:none;
+    background:var(--signal);
+    clip-path:polygon(50% 100%,0 42%,32% 42%,32% 0,68% 0,68% 42%,100% 42%);
+  }
+  .lede{
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--dim);
+    margin:10px 0 26px;
+    letter-spacing:.01em;
+  }
+  .note{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--dim);
+    margin:12px 0 0;
+    line-height:1.5;
+  }
+
+  /* ---- input ---- */
+  .field{position:relative}
+  textarea{
+    width:100%;
+    min-height:92px;
+    resize:none;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    color:var(--bone);
+    font-family:var(--mono);
+    font-size:14px;
+    line-height:1.5;
+    padding:14px 15px;
+    word-break:break-all;
+  }
+  textarea::placeholder{color:#4E6673}
+  textarea:focus{border-color:var(--signal);outline:none}
+
+  .row{display:flex;gap:10px;margin-top:12px}
+  button{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    font-weight:700;
+    border-radius:var(--r);
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--bone);
+    padding:13px 16px;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  button:active{transform:translateY(1px)}
+  button[disabled]{opacity:.45;cursor:default}
+  .primary{
+    flex:1;
+    background:var(--signal);
+    border-color:var(--signal);
+    color:#0C1216;
+  }
+
+  /* ---- status ---- */
+  .status{
+    font-family:var(--mono);
+    font-size:12.5px;
+    margin-top:18px;
+    padding:12px 14px;
+    border-radius:var(--r);
+    border:1px solid var(--line);
+    background:var(--panel-2);
+    color:var(--dim);
+  }
+  .status.err{border-color:#4A2A22;color:var(--bad);background:#1A100D}
+  .status a{color:inherit}
+  .hidden{display:none !important}
+
+  /* ---- result ---- */
+  .card{
+    margin-top:24px;
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    overflow:hidden;
+    background:var(--panel);
+  }
+  .who{display:flex;gap:11px;align-items:center;padding:14px 15px}
+  .who img{width:34px;height:34px;border-radius:50%;flex:none;background:var(--line)}
+  .who b{display:block;font-size:14px;font-weight:600;line-height:1.2}
+  .who span{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .caption{
+    padding:0 15px 14px;
+    font-size:13.5px;
+    color:#B8C9D3;
+    display:-webkit-box;
+    -webkit-line-clamp:3;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .poster{display:block;width:100%;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+  .spec{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:var(--dim);
+    padding:14px 15px 4px;
+  }
+  .variant{
+    display:grid;
+    grid-template-columns:1fr auto;
+    grid-template-areas:"meta save" "bar save";
+    align-items:center;
+    gap:4px 14px;
+    padding:12px 15px 14px;
+    border-top:1px solid var(--line);
+  }
+  .variant:first-of-type{border-top:none}
+  .variant .meta{
+    grid-area:meta;
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:.02em;
+  }
+  .variant .meta em{font-style:normal;color:var(--dim)}
+  .variant .bar{
+    grid-area:bar;
+    height:3px;
+    background:var(--line);
+    border-radius:2px;
+    overflow:hidden;
+  }
+  .variant .bar i{
+    display:block;height:100%;
+    background:var(--signal);
+    width:0;
+    transition:width .18s linear;
+  }
+  .variant .save{grid-area:save;padding:11px 15px}
+
+  /* ---- connection ---- */
+  details{margin-top:30px;border-top:1px solid var(--line);padding-top:18px}
+  summary{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:var(--dim);
+    cursor:pointer;
+    list-style:none;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:" +";}
+  details[open] summary::after{content:" –";}
+  details p{font-size:13px;color:var(--dim);line-height:1.5}
+  input[type=url]{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    color:var(--bone);
+    font-family:var(--mono);
+    font-size:13px;
+    padding:12px 13px;
+  }
+  input[type=url]:focus{border-color:var(--signal);outline:none}
+
+  .foot{
+    font-family:var(--mono);
+    font-size:11px;
+    color:#4E6673;
+    margin-top:34px;
+    line-height:1.7;
+  }
+
+  @media (prefers-reduced-motion:no-preference){
+    .card{animation:rise .32s cubic-bezier(.2,.7,.3,1) both}
+    @keyframes rise{from{opacity:0;transform:translateY(8px)}}
+  }
+</style>
+</head>
+<body>
+
+<h1 class="mark"><i></i>Grab</h1>
+<p class="lede">Paste a post link. Pick a quality. Save the file.</p>
+
+<div class="field">
+  <textarea id="link" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+    placeholder="https://x.com/user/status/... or an Instagram / Facebook video link"></textarea>
+</div>
+<div class="row">
+  <button id="paste" class="hidden" type="button">Paste</button>
+  <button id="find" class="primary" type="button">Find video</button>
+</div>
+<p class="note">Instagram and Facebook only expose the public page, so this only works on posts that don't require login, and gives one quality rather than several.</p>
+
+<div id="status" class="status hidden"></div>
+<div id="result"></div>
+
+<details id="conn">
+  <summary>Connection</summary>
+  <p>Browsers block pages from reading other sites directly. If lookups or saves fail, deploy the included Cloudflare Worker and paste its address here.</p>
+  <input id="proxy" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+    placeholder="https://your-worker.workers.dev/">
+  <p id="connState" style="margin-bottom:0"></p>
+</details>
+
+<p class="foot">
+  Reads each platform's public post data — Twitter's embed API, or Instagram/Facebook's page preview tags. Protected, private, and login-gated posts are invisible to it.<br>
+  Save what you have the right to save.
+</p>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var linkEl = $("link"), findEl = $("find"), pasteEl = $("paste"),
+      statusEl = $("status"), resultEl = $("result"), proxyEl = $("proxy"),
+      connStateEl = $("connState"), connEl = $("conn");
+
+  /* ---------- tiny storage that never throws ---------- */
+  var mem = {};
+  function store(k, v) {
+    if (arguments.length > 1) {
+      mem[k] = v;
+      try { localStorage.setItem(k, v); } catch (e) {}
+      return v;
+    }
+    try { var s = localStorage.getItem(k); if (s !== null) return s; } catch (e) {}
+    return mem[k] || "";
+  }
+
+  /* ---------- proxy ---------- */
+  var proxy = "";
+  function setProxy(v) {
+    proxy = (v || "").trim();
+    store("proxy", proxy);
+    connStateEl.textContent = proxy ? "Routing through your worker." : "Talking to each platform directly.";
+  }
+  function via(url) {
+    if (!proxy) return url;
+    var base = proxy.indexOf("?") > -1 ? proxy : proxy.replace(/\/*$/, "/") + "?url=";
+    return base + encodeURIComponent(url);
+  }
+
+  /* ---------- helpers ---------- */
+  function idFrom(text) {
+    var m = String(text).match(/(?:status(?:es)?\/|^\s*)(\d{10,25})/);
+    return m ? m[1] : null;
+  }
+  function token(id) {
+    return ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/g, "");
+  }
+
+  /* ---------- platform detection ---------- */
+  function detectPlatform(text) {
+    var s = String(text || "").trim();
+    if (!s) return null;
+    var withScheme = /^https?:\/\//i.test(s) ? s : "https://" + s;
+    var host;
+    try { host = new URL(withScheme).hostname.toLowerCase(); } catch (e) { return null; }
+    host = host.replace(/^(www|m|mobile)\./, "");
+    if (host === "twitter.com" || host === "x.com") return "twitter";
+    if (host === "instagram.com") return "instagram";
+    if (host === "facebook.com" || host === "fb.watch") return "facebook";
+    return null;
+  }
+  function platformName(p) {
+    return p === "twitter" ? "Twitter" : p === "instagram" ? "Instagram" : "Facebook";
+  }
+  function instagramId(text) {
+    var m = String(text).match(/instagram\.com\/(?:[^\/?#]+\/)?(?:p|reel|tv)\/([A-Za-z0-9_-]+)/i);
+    return m ? m[1] : null;
+  }
+  function facebookId(text) {
+    var s = String(text);
+    var m = s.match(/fb\.watch\/([A-Za-z0-9_-]+)/i);
+    if (m) return m[1];
+    m = s.match(/facebook\.com\/(?:[^\/?#]+\/)?(?:videos|reel)\/(\d+)/i);
+    if (m) return m[1];
+    m = s.match(/facebook\.com\/watch\/?\?(?:[^#]*&)?v=(\d+)/i);
+    if (m) return m[1];
+    return null;
+  }
+
+  /* ---------- Instagram / Facebook: og:* tag scraping ---------- */
+  function unescapeHtml(s) {
+    if (!s) return s;
+    return s
+      .replace(/&#(\d+);/g, function (m, d) { return String.fromCharCode(+d); })
+      .replace(/&#x([0-9a-f]+);/gi, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;|&apos;/g, "'");
+  }
+  function metaTag(html, prop) {
+    var re1 = new RegExp('<meta[^>]*\\bproperty=["\']' + prop + '["\'][^>]*\\bcontent=["\']([^"\']*)["\']', "i");
+    var re2 = new RegExp('<meta[^>]*\\bcontent=["\']([^"\']*)["\'][^>]*\\bproperty=["\']' + prop + '["\']', "i");
+    var m = html.match(re1) || html.match(re2);
+    return m ? unescapeHtml(m[1]) : "";
+  }
+  function fetchPageMeta(url) {
+    return fetch(via(url), { referrerPolicy: "no-referrer" }).then(function (r) {
+      if (!r.ok) throw new Error("http " + r.status);
+      return r.text();
+    }).then(function (html) {
+      return {
+        video: metaTag(html, "og:video:secure_url") || metaTag(html, "og:video"),
+        image: metaTag(html, "og:image"),
+        title: metaTag(html, "og:title"),
+        desc: metaTag(html, "og:description")
+      };
+    });
+  }
+  function normalizeMeta(meta, platform) {
+    if (!meta.video) return null;
+    return {
+      variants: [{ src: meta.video, w: 0, h: 0, bitrate: 0, label: "Best available quality" }],
+      poster: meta.image || "",
+      caption: meta.desc || "",
+      name: meta.title || platformName(platform),
+      handle: ""
+    };
+  }
+
+  function say(msg, isErr) {
+    statusEl.innerHTML = msg;
+    statusEl.className = "status" + (isErr ? " err" : "");
+  }
+  function clearSay() { statusEl.className = "status hidden"; }
+  function bytes(n) {
+    if (!n) return "";
+    var mb = n / 1048576;
+    return (mb >= 100 ? Math.round(mb) : mb.toFixed(1)) + " MB";
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  /* ---------- lookup ---------- */
+  function lookup(id) {
+    var url = "https://cdn.syndication.twimg.com/tweet-result?id=" + id +
+              "&token=" + token(id) + "&lang=en";
+    return fetch(via(url), { referrerPolicy: "no-referrer" }).then(function (r) {
+      if (r.status === 404) throw new Error("gone");
+      if (!r.ok) throw new Error("http " + r.status);
+      return r.json();
+    });
+  }
+
+  function pickVariants(data) {
+    var list = [];
+    var details = data.mediaDetails || [];
+    for (var i = 0; i < details.length; i++) {
+      var m = details[i];
+      if ((m.type === "video" || m.type === "animated_gif") && m.video_info) {
+        list = list.concat(m.video_info.variants || []);
+      }
+    }
+    if (!list.length && data.video && data.video.variants) list = data.video.variants;
+
+    var out = [];
+    for (var j = 0; j < list.length; j++) {
+      var v = list[j];
+      var src = v.url || v.src;
+      var kind = v.content_type || v.type || "";
+      if (!src || kind.indexOf("mp4") === -1) continue;
+      var dim = src.match(/\/(\d+)x(\d+)\//);
+      out.push({
+        src: src,
+        w: dim ? +dim[1] : 0,
+        h: dim ? +dim[2] : 0,
+        bitrate: v.bitrate || 0
+      });
+    }
+    out.sort(function (a, b) { return (b.bitrate || b.h) - (a.bitrate || a.h); });
+
+    var seen = {}, uniq = [];
+    for (var k = 0; k < out.length; k++) {
+      if (seen[out[k].src]) continue;
+      seen[out[k].src] = 1;
+      uniq.push(out[k]);
+    }
+    return uniq;
+  }
+
+  function normalizeTwitter(data) {
+    var variants = pickVariants(data);
+    if (!variants.length) return null;
+    var user = data.user || {};
+    var poster = (data.mediaDetails && data.mediaDetails[0] && data.mediaDetails[0].media_url_https) ||
+                 (data.video && data.video.poster) || "";
+    return {
+      variants: variants,
+      poster: poster,
+      caption: data.text || "",
+      name: user.name || "Unknown",
+      handle: user.screen_name || "video",
+      avatar: user.profile_image_url_https || ""
+    };
+  }
+
+  /* ---------- render ----------
+     Renders a normalized result — one entry from Twitter's multi-variant
+     list, or the single og:video entry from Instagram/Facebook. Same card
+     markup either way. */
+  function render(norm, id, platform) {
+    if (!norm || !norm.variants.length) {
+      resultEl.innerHTML = "";
+      if (platform === "twitter") {
+        say("No video in that post — it may be images only.", true);
+      } else {
+        say("No public video found on that page. It's likely private, login-gated, or not a video post.", true);
+      }
+      return;
+    }
+    clearSay();
+
+    var variants = norm.variants;
+    var top = variants[0].bitrate || 1;
+
+    var html = '<div class="card">';
+    html += '<div class="who">' +
+              (norm.avatar ? '<img alt="" src="' + esc(norm.avatar) + '">' : '') +
+              '<div><b>' + esc(norm.name || "Unknown") + '</b>' +
+              (norm.handle ? '<span>@' + esc(norm.handle) + '</span>' : '') + '</div></div>';
+    if (norm.caption) html += '<div class="caption">' + esc(norm.caption) + '</div>';
+    if (norm.poster) html += '<img class="poster" alt="" src="' + esc(norm.poster) + '">';
+    html += '<div class="spec">' + variants.length + ' file' + (variants.length > 1 ? 's' : '') + ' available</div>';
+
+    for (var i = 0; i < variants.length; i++) {
+      var v = variants[i];
+      var metaText;
+      if (v.label) {
+        metaText = esc(v.label);
+      } else {
+        var size = v.w ? v.w + "&times;" + v.h : "mp4";
+        var rate = v.bitrate ? Math.round(v.bitrate / 1000) + " kbps" : "unknown rate";
+        metaText = size + ' <em>· ' + rate + '</em>';
+      }
+      var pct = v.bitrate ? Math.max(6, Math.round(v.bitrate / top * 100)) : 100;
+      html += '<div class="variant" data-i="' + i + '">' +
+                '<div class="meta">' + metaText + '</div>' +
+                '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+                '<button class="save" type="button">Save</button>' +
+              '</div>';
+    }
+    html += '</div>';
+    resultEl.innerHTML = html;
+
+    var rows = resultEl.querySelectorAll(".variant");
+    for (var r = 0; r < rows.length; r++) {
+      (function (row) {
+        var v = variants[+row.getAttribute("data-i")];
+        row.querySelector(".save").addEventListener("click", function () {
+          download(v, row, (norm.handle || platform) + "-" + id + (v.h ? "-" + v.h + "p" : "") + ".mp4");
+        });
+      })(rows[r]);
+    }
+  }
+
+  /* ---------- download ---------- */
+  function download(v, row, filename) {
+    var btn = row.querySelector(".save");
+    var fill = row.querySelector(".bar i");
+    var meta = row.querySelector(".meta");
+    var metaHTML = meta.innerHTML;
+    var barWidth = fill.style.width;
+
+    btn.disabled = true;
+    btn.textContent = "Saving";
+    fill.style.width = "0%";
+    meta.innerHTML = "Starting…";
+
+    function restore(msg, isErr) {
+      btn.disabled = false;
+      btn.textContent = "Save";
+      fill.style.width = barWidth;
+      meta.innerHTML = msg || metaHTML;
+      if (isErr) meta.style.color = "var(--bad)";
+    }
+
+    fetch(via(v.src), { referrerPolicy: "no-referrer" }).then(function (res) {
+      if (!res.ok) throw new Error("http " + res.status);
+      var total = +res.headers.get("content-length") || 0;
+      if (!res.body || !res.body.getReader) return res.blob();
+
+      var reader = res.body.getReader(), chunks = [], got = 0;
+      return (function pump() {
+        return reader.read().then(function (step) {
+          if (step.done) return new Blob(chunks, { type: "video/mp4" });
+          chunks.push(step.value);
+          got += step.value.length;
+          if (total) {
+            fill.style.width = Math.round(got / total * 100) + "%";
+            meta.innerHTML = Math.round(got / total * 100) + "% · " + bytes(total);
+          } else {
+            meta.innerHTML = bytes(got) + " so far";
+          }
+          return pump();
+        });
+      })();
+    }).then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      restore("Saved · " + bytes(blob.size));
+      setTimeout(function () { restore(); meta.style.color = ""; }, 4000);
+    }).catch(function () {
+      restore();
+      meta.style.color = "";
+      window.open(v.src, "_blank", "noopener");
+      say("Your browser blocked the direct save, so the video opened in a new tab — " +
+          "press and hold it to save. To fix this for good, set up the worker under Connection.", true);
+      connEl.open = true;
+    });
+  }
+
+  /* ---------- identify pasted text ---------- */
+  function identify(text) {
+    var s = String(text || "").trim();
+    if (!s) return { platform: null, id: null };
+    var platform = detectPlatform(s);
+    var id = null;
+    if (!platform) {
+      id = idFrom(s); // bare numeric ID convenience — treated as Twitter
+      if (id) platform = "twitter";
+    } else if (platform === "twitter") {
+      id = idFrom(s);
+    } else if (platform === "instagram") {
+      id = instagramId(s);
+    } else if (platform === "facebook") {
+      id = facebookId(s);
+    }
+    return { platform: platform, id: id };
+  }
+  function looksActionable(text) {
+    return !!identify(text).id;
+  }
+
+  /* ---------- run ---------- */
+  function run() {
+    var raw = linkEl.value.trim();
+    var hit = identify(raw);
+
+    if (!hit.platform) {
+      resultEl.innerHTML = "";
+      say("That doesn't look like a Twitter/X, Instagram, or Facebook link.", true);
+      return;
+    }
+    if (!hit.id) {
+      resultEl.innerHTML = "";
+      say("That's a " + platformName(hit.platform) + " link, but not a post/video URL " +
+          (hit.platform === "instagram" ?
+            "(expected a /p/, /reel/ or /tv/ link)." :
+            "(expected /watch, /videos/, /reel/, or an fb.watch link).") , true);
+      return;
+    }
+
+    resultEl.innerHTML = "";
+    say("Looking up post " + hit.id + "…");
+    findEl.disabled = true;
+
+    var task;
+    if (hit.platform === "twitter") {
+      task = lookup(hit.id).then(function (data) {
+        if (!data || data.__typename === "TweetTombstone" || data.tombstone) {
+          throw new Error("tombstone");
+        }
+        return normalizeTwitter(data);
+      });
+    } else {
+      task = fetchPageMeta(raw).then(function (meta) {
+        return normalizeMeta(meta, hit.platform);
+      });
+    }
+
+    task.then(function (norm) {
+      render(norm, hit.id, hit.platform);
+    }).catch(function (err) {
+      if (String(err.message) === "tombstone") {
+        say("That post is protected, deleted, or age-restricted, so the public embed can't see it.", true);
+      } else if (String(err.message) === "gone") {
+        say("No post with that ID. Check the link.", true);
+      } else if (err instanceof TypeError) {
+        say("Couldn't reach " + platformName(hit.platform) + " from the browser. Set up the worker under Connection below, then try again.", true);
+        connEl.open = true;
+      } else {
+        say("Lookup failed (" + esc(err.message) + "). Try again in a moment.", true);
+      }
+    }).then(function () { findEl.disabled = false; });
+  }
+
+  findEl.addEventListener("click", run);
+  linkEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); run(); }
+  });
+
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    pasteEl.className = "";
+    pasteEl.addEventListener("click", function () {
+      navigator.clipboard.readText().then(function (t) {
+        linkEl.value = t;
+        if (looksActionable(t)) run();
+      }).catch(function () {
+        say("Clipboard access was denied. Paste into the box instead.", true);
+      });
+    });
+  }
+
+  proxyEl.addEventListener("change", function () { setProxy(proxyEl.value); });
+  proxyEl.addEventListener("blur", function () { setProxy(proxyEl.value); });
+
+  /* boot: query params, saved proxy, share target */
+  var q = new URLSearchParams(location.search);
+  var saved = q.get("proxy") || store("proxy");
+  proxyEl.value = saved || "";
+  setProxy(saved);
+
+  var shared = q.get("url") || q.get("text") || "";
+  if (shared) {
+    linkEl.value = shared;
+    if (looksActionable(shared)) run();
+  }
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      try { navigator.serviceWorker.register("sw.js"); } catch (e) {}
+    });
+  }
+})();
+</script>
+</body>
+</html>
