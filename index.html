@@ -294,10 +294,13 @@
      Clearing the box and leaving it blank opts back out to "no proxy". */
   var DEFAULT_PROXY = "https://all-downloader.henrikuaye.workers.dev";
   var proxy = "";
-  function setProxy(v) {
+  function applyProxy(v) {
     proxy = (v || "").trim();
-    store("proxy", proxy);
     connStateEl.textContent = proxy ? "Routing through your worker." : "Talking to each platform directly.";
+  }
+  function setProxy(v) {
+    applyProxy(v);
+    store("proxy", proxy);
   }
   function via(url) {
     if (!proxy) return url;
@@ -682,13 +685,22 @@
   proxyEl.addEventListener("change", function () { setProxy(proxyEl.value); });
   proxyEl.addEventListener("blur", function () { setProxy(proxyEl.value); });
 
-  /* boot: query params, saved proxy, share target */
+  /* boot: query params, saved proxy, share target
+     An explicit ?proxy= in the URL is a real user choice, so it's saved.
+     Otherwise this just resolves what to show (saved value, or the
+     default) without writing back — plain page loads must never turn a
+     resolved default into a persisted "no proxy". */
   var q = new URLSearchParams(location.search);
   var qProxy = q.get("proxy");
-  var stored = store("proxy");
-  var saved = qProxy != null ? qProxy : (typeof stored === "undefined" ? DEFAULT_PROXY : stored);
-  proxyEl.value = saved || "";
-  setProxy(saved);
+  if (qProxy != null) {
+    proxyEl.value = qProxy;
+    setProxy(qProxy);
+  } else {
+    var stored = store("proxy");
+    var saved = (typeof stored === "undefined") ? DEFAULT_PROXY : stored;
+    proxyEl.value = saved || "";
+    applyProxy(saved);
+  }
 
   var shared = q.get("url") || q.get("text") || "";
   if (shared) {
