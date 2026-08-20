@@ -5,333 +5,430 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grab — video downloader</title>
 <meta name="description" content="Paste a post link, pick a quality, save the video.">
-<meta name="theme-color" content="#0C1216">
+<meta name="theme-color" content="#0A0C10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FAFBFD" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root{
-    --ink:#0C1216;
-    --panel:#141F26;
-    --panel-2:#0F1A20;
-    --panel-3:#18242C;   /* raised / hover surface */
-    --line:#22333D;
-    --line-2:#2B404C;    /* hover border */
-    --bone:#E6EDF1;
-    --text-2:#B8C9D3;    /* body copy on panels */
-    --dim:#7C93A1;
-    --faint:#4E6673;     /* placeholders, footer */
-    --signal:#F2A413;
-    --signal-2:#FFB92E;  /* signal, hover */
-    --bad:#E0674A;
-    --bad-line:#4A2A22;
-    --bad-bg:#1A100D;
+    color-scheme:dark;
+    --bg:#0A0C10;
+    --surface:#151A21;
+    --surface-2:#1B222B;
+    --surface-3:#232B36;
+    --border:#242D39;
+    --border-2:#36414F;
+    --text:#F4F6F9;
+    --text-2:#B4BFCD;
+    --text-3:#78889B;
+    --accent:#F5A524;
+    --accent-2:#FFBE4D;
+    --accent-ink:#1A1205;
+    --accent-soft:rgba(245,165,36,.14);
+    --bad:#F0704F;
+    --bad-bg:#1D110D;
+    --bad-border:#4A2A22;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --r:10px;
-    --r-sm:6px;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --r:12px;
+    --r-lg:18px;
+    --pill:999px;
     --ease:cubic-bezier(.2,.7,.3,1);
-    --shadow:0 1px 2px rgba(0,0,0,.35);
-    --shadow-lg:0 12px 32px -14px rgba(0,0,0,.7);
+    --sh-1:0 1px 2px rgba(0,0,0,.4);
+    --sh-2:0 10px 30px -12px rgba(0,0,0,.7);
+    --sh-3:0 28px 70px -28px rgba(0,0,0,.9);
   }
+  @media (prefers-color-scheme:light){
+    :root{
+      color-scheme:light;
+      --bg:#FAFBFD;
+      --surface:#FFFFFF;
+      --surface-2:#F4F7FA;
+      --surface-3:#EAEFF5;
+      --border:#E2E8F0;
+      --border-2:#CBD5E1;
+      --text:#0D1420;
+      --text-2:#46566B;
+      --text-3:#7B8A9E;
+      --accent:#C97C08;
+      --accent-2:#A96608;
+      --accent-ink:#FFFFFF;
+      --accent-soft:rgba(201,124,8,.12);
+      --bad:#B93E27;
+      --bad-bg:#FDF3F1;
+      --bad-border:#F0D2CA;
+      --sh-1:0 1px 2px rgba(16,24,40,.06);
+      --sh-2:0 10px 30px -12px rgba(16,24,40,.16);
+      --sh-3:0 28px 70px -28px rgba(16,24,40,.24);
+    }
+  }
+
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
-    background:var(--ink);
-    color:var(--bone);
+    background:var(--bg);
+    color:var(--text);
     font-family:var(--sans);
     font-size:16px;
-    line-height:1.45;
+    line-height:1.5;
     -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
     padding:
-      calc(env(safe-area-inset-top) + 28px)
-      calc(env(safe-area-inset-right) + 18px)
-      calc(env(safe-area-inset-bottom) + 40px)
-      calc(env(safe-area-inset-left) + 18px);
-    max-width:620px;
+      calc(env(safe-area-inset-top) + 34px)
+      calc(env(safe-area-inset-right) + 20px)
+      calc(env(safe-area-inset-bottom) + 56px)
+      calc(env(safe-area-inset-left) + 20px);
+    max-width:640px;
     margin:0 auto;
+    position:relative;
+    z-index:1;
   }
-  ::selection{background:var(--signal);color:var(--ink)}
-  :focus-visible{outline:2px solid var(--signal);outline-offset:2px;border-radius:4px}
+  ::selection{background:var(--accent);color:var(--accent-ink)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 
-  /* ---- masthead ---- */
-  .mark{
-    font-family:var(--mono);
-    font-size:13px;
-    letter-spacing:.34em;
-    text-transform:uppercase;
-    font-weight:700;
-    margin:0;
-    display:flex;align-items:center;gap:10px;
+  /* Ambient wash behind the hero. */
+  .glow{
+    position:fixed;
+    top:-260px;left:50%;
+    width:min(820px,140vw);height:620px;
+    transform:translateX(-50%);
+    background:radial-gradient(50% 50% at 50% 50%, var(--accent-soft), transparent 70%);
+    pointer-events:none;
+    z-index:0;
   }
-  .mark i{
-    width:13px;height:13px;display:block;flex:none;
-    background:var(--signal);
+
+  /* ---- hero ---- */
+  .brand{
+    display:inline-flex;align-items:center;gap:9px;
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.28em;
+    text-transform:uppercase;
+    font-weight:600;
+    color:var(--text-3);
+    padding:7px 13px 7px 10px;
+    border:1px solid var(--border);
+    border-radius:var(--pill);
+    background:var(--surface);
+    box-shadow:var(--sh-1);
+  }
+  .brand i{
+    width:11px;height:11px;display:block;flex:none;
+    background:var(--accent);
     clip-path:polygon(50% 100%,0 42%,32% 42%,32% 0,68% 0,68% 42%,100% 42%);
   }
-  .lede{
-    font-family:var(--mono);
-    font-size:12.5px;
-    color:var(--dim);
-    margin:10px 0 26px;
-    letter-spacing:.01em;
+  h1{
+    font-size:clamp(30px,8.4vw,40px);
+    line-height:1.1;
+    letter-spacing:-.03em;
+    font-weight:680;
+    margin:22px 0 0;
   }
-  .note{
+  h1 em{
+    font-style:normal;
+    background:linear-gradient(96deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .sub{
+    font-size:15.5px;
+    color:var(--text-2);
+    margin:13px 0 0;
+    max-width:33ch;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:20px 0 30px}
+  .chip{
     font-family:var(--mono);
-    font-size:11.5px;
-    color:var(--dim);
-    margin:12px 0 0;
-    line-height:1.5;
+    font-size:11px;
+    letter-spacing:.06em;
+    color:var(--text-2);
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--pill);
+    padding:6px 12px;
   }
 
   /* ---- input ---- */
   .field{position:relative}
   textarea{
     width:100%;
-    min-height:92px;
+    min-height:104px;
     resize:none;
-    background:var(--panel-2);
-    border:1px solid var(--line);
-    border-radius:var(--r);
-    color:var(--bone);
+    display:block;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-lg);
+    color:var(--text);
     font-family:var(--mono);
     font-size:14px;
-    line-height:1.5;
-    padding:14px 15px;
-    /* Long URLs still break mid-string, but ordinary words don't —
-       break-all was splitting the placeholder as "Insta / gram". */
+    line-height:1.6;
+    padding:17px 18px;
     overflow-wrap:anywhere;
+    box-shadow:var(--sh-1);
+    transition:border-color .18s var(--ease), box-shadow .18s var(--ease);
   }
-  textarea::placeholder{color:var(--faint)}
+  textarea::placeholder{color:var(--text-3)}
   textarea:focus{
-    border-color:var(--signal);
+    border-color:var(--accent);
     outline:none;
-    box-shadow:0 0 0 3px rgba(242,164,19,.12);
+    box-shadow:0 0 0 4px var(--accent-soft);
   }
 
   .row{display:flex;gap:10px;margin-top:12px}
   button{
-    font-family:var(--mono);
-    font-size:12.5px;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-    font-weight:700;
+    font-family:var(--sans);
+    font-size:14.5px;
+    letter-spacing:0;
+    font-weight:600;
     border-radius:var(--r);
-    border:1px solid var(--line);
-    background:transparent;
-    color:var(--bone);
-    padding:13px 16px;
-    min-height:46px;           /* comfortable touch target */
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text);
+    padding:14px 20px;
+    min-height:52px;
     cursor:pointer;
     -webkit-tap-highlight-color:transparent;
+    box-shadow:var(--sh-1);
     transition:background-color .16s var(--ease), border-color .16s var(--ease),
-               color .16s var(--ease), transform .08s var(--ease), opacity .16s var(--ease);
+               transform .09s var(--ease), opacity .16s var(--ease), box-shadow .16s var(--ease);
   }
-  button:active{transform:translateY(1px) scale(.994)}
-  button[disabled]{opacity:.45;cursor:default;transform:none}
+  button:active{transform:translateY(1px) scale(.993)}
+  button[disabled]{opacity:.5;cursor:default;transform:none}
   .primary{
     flex:1;
-    background:var(--signal);
-    border-color:var(--signal);
-    color:var(--ink);
-    box-shadow:var(--shadow);
+    background:linear-gradient(180deg,var(--accent-2),var(--accent));
+    border-color:transparent;
+    color:var(--accent-ink);
+    box-shadow:var(--sh-2), inset 0 1px 0 rgba(255,255,255,.22);
   }
   @media (hover:hover){
-    button:not(.primary):not([disabled]):hover{
-      background:var(--panel-3);
-      border-color:var(--line-2);
-    }
-    .primary:not([disabled]):hover{
-      background:var(--signal-2);
-      border-color:var(--signal-2);
-    }
+    button:not(.primary):not([disabled]):hover{background:var(--surface-2);border-color:var(--border-2)}
+    .primary:not([disabled]):hover{filter:brightness(1.06)}
+  }
+
+  .note{
+    font-size:13px;
+    color:var(--text-3);
+    margin:14px 0 0;
+    line-height:1.6;
   }
 
   /* ---- status ---- */
   .status{
-    font-family:var(--mono);
-    font-size:12.5px;
+    font-size:13.5px;
     line-height:1.55;
-    margin-top:18px;
-    padding:12px 14px 12px 34px;
+    margin-top:20px;
+    padding:14px 16px 14px 38px;
     border-radius:var(--r);
-    border:1px solid var(--line);
-    background:var(--panel-2);
-    color:var(--dim);
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text-2);
     position:relative;
+    box-shadow:var(--sh-1);
   }
-  /* Dot marker: pulses while working, goes solid red on error. */
   .status::before{
     content:"";
     position:absolute;
-    left:14px;top:50%;
-    width:7px;height:7px;margin-top:-3.5px;
+    left:16px;top:50%;
+    width:8px;height:8px;margin-top:-4px;
     border-radius:50%;
-    background:var(--signal);
+    background:var(--accent);
   }
-  .status.err{border-color:var(--bad-line);color:var(--bad);background:var(--bad-bg)}
+  .status.err{border-color:var(--bad-border);color:var(--bad);background:var(--bad-bg)}
   .status.err::before{background:var(--bad);animation:none}
   .status a{color:inherit}
   .hidden{display:none !important}
 
-  /* ---- skeleton (shown while a lookup is in flight) ---- */
-  .sk{background:var(--line);border-radius:var(--r-sm);position:relative;overflow:hidden}
-  .sk-av{width:34px;height:34px;border-radius:50%;flex:none}
-  .sk-line{height:9px}
-  .sk-poster{height:190px;border-radius:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  /* ---- skeleton ---- */
+  .sk{background:var(--surface-3);border-radius:8px;position:relative;overflow:hidden}
+  .sk-av{width:40px;height:40px;border-radius:50%;flex:none}
+  .sk-line{height:10px}
+  .sk-poster{height:200px;border-radius:0}
 
   /* ---- result ---- */
   .card{
-    margin-top:24px;
-    border:1px solid var(--line);
-    border-radius:var(--r);
+    margin-top:26px;
+    border:1px solid var(--border);
+    border-radius:var(--r-lg);
     overflow:hidden;
-    background:var(--panel);
-    box-shadow:var(--shadow-lg);
+    background:var(--surface);
+    box-shadow:var(--sh-3);
   }
-  .who{display:flex;gap:11px;align-items:center;padding:14px 15px}
-  .who img{width:34px;height:34px;border-radius:50%;flex:none;background:var(--line);object-fit:cover}
-  .who b{display:block;font-size:14px;font-weight:600;line-height:1.2}
-  .who span{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .who{display:flex;gap:13px;align-items:center;padding:18px 18px 14px}
+  .who img{width:40px;height:40px;border-radius:50%;flex:none;background:var(--surface-3);object-fit:cover}
+  .who b{display:block;font-size:15px;font-weight:640;line-height:1.25;letter-spacing:-.01em}
+  .who span{font-family:var(--mono);font-size:11.5px;color:var(--text-3)}
   .caption{
-    padding:0 15px 14px;
-    font-size:13.5px;
+    padding:0 18px 16px;
+    font-size:14px;
     color:var(--text-2);
     display:-webkit-box;
     -webkit-line-clamp:3;
     -webkit-box-orient:vertical;
     overflow:hidden;
   }
-  /* Poster keeps its own slot so the card doesn't jump when the image
-     arrives. aspect-ratio is set inline when the dimensions are known. */
   .poster{
     display:block;
     width:100%;
-    background:var(--panel-2);
-    border-top:1px solid var(--line);
-    border-bottom:1px solid var(--line);
-    /* The poster identifies the video, it isn't the content — capping it
-       keeps a 9:16 reel from burying the Save button below the fold.
-       Landscape posters sit well under this and are unaffected. */
-    max-height:42vh;
+    background:var(--surface-2);
+    border-top:1px solid var(--border);
+    max-height:40vh;
     object-fit:cover;
     opacity:0;
-    transition:opacity .3s var(--ease);
+    transition:opacity .35s var(--ease);
   }
   .poster.ready{opacity:1}
 
   .spec{
     font-family:var(--mono);
-    font-size:10.5px;
-    letter-spacing:.22em;
+    font-size:10px;
+    letter-spacing:.2em;
     text-transform:uppercase;
-    color:var(--dim);
-    padding:14px 15px 4px;
+    color:var(--text-3);
+    padding:16px 18px 2px;
+    background:var(--surface-2);
+    border-top:1px solid var(--border);
   }
   .variant{
     display:grid;
     grid-template-columns:1fr auto;
     grid-template-areas:"meta save" "bar save";
     align-items:center;
-    gap:6px 14px;
-    padding:13px 15px 15px;
-    border-top:1px solid var(--line);
+    gap:8px 16px;
+    padding:14px 18px 16px;
+    background:var(--surface-2);
+    border-top:1px solid var(--border);
     transition:background-color .16s var(--ease);
   }
   .variant:first-of-type{border-top:none}
-  @media (hover:hover){
-    .variant:hover{background:var(--panel-3)}
-  }
+  @media (hover:hover){ .variant:hover{background:var(--surface-3)} }
   .variant .meta{
     grid-area:meta;
     font-family:var(--mono);
-    font-size:13px;
-    letter-spacing:.02em;
-    font-variant-numeric:tabular-nums;   /* digits stop jittering while counting */
+    font-size:13.5px;
+    font-variant-numeric:tabular-nums;
+    color:var(--text);
     transition:color .16s var(--ease);
   }
-  .variant .meta em{font-style:normal;color:var(--dim)}
+  .variant .meta em{font-style:normal;color:var(--text-3)}
   .variant .bar{
     grid-area:bar;
-    height:3px;
-    background:var(--line);
-    border-radius:2px;
+    height:4px;
+    background:var(--surface-3);
+    border-radius:var(--pill);
     overflow:hidden;
   }
   .variant .bar i{
     display:block;height:100%;
-    background:var(--signal);
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
     width:0;
-    border-radius:2px;
+    border-radius:var(--pill);
     transition:width .18s linear;
   }
-  .variant .save{grid-area:save;padding:11px 15px;min-height:44px}
+  .variant .save{
+    grid-area:save;
+    padding:11px 20px;
+    min-height:46px;
+    font-size:14px;
+    background:var(--surface);
+  }
 
   /* ---- connection ---- */
-  details{margin-top:30px;border-top:1px solid var(--line);padding-top:18px}
+  details{
+    margin-top:32px;
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    background:var(--surface);
+    padding:0;
+    overflow:hidden;
+  }
   summary{
-    font-family:var(--mono);
-    font-size:11px;
-    letter-spacing:.22em;
-    text-transform:uppercase;
-    color:var(--dim);
+    font-size:13.5px;
+    font-weight:600;
+    letter-spacing:0;
+    color:var(--text-2);
     cursor:pointer;
     list-style:none;
+    padding:15px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    transition:color .16s var(--ease), background-color .16s var(--ease);
   }
   summary::-webkit-details-marker{display:none}
-  summary::after{content:" +";}
-  details[open] summary::after{content:" –";}
-  summary:hover{color:var(--bone)}
-  details p{font-size:13px;color:var(--dim);line-height:1.5}
+  summary::after{
+    content:"";
+    width:7px;height:7px;
+    border-right:1.5px solid currentColor;
+    border-bottom:1.5px solid currentColor;
+    transform:rotate(45deg) translate(-2px,-2px);
+    transition:transform .2s var(--ease);
+    opacity:.65;
+  }
+  details[open] summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+  summary:hover{color:var(--text)}
+  .conn-body{padding:0 18px 18px}
+  details p{font-size:13px;color:var(--text-3);line-height:1.6;margin:0 0 12px}
   input[type=url]{
     width:100%;
-    background:var(--panel-2);
-    border:1px solid var(--line);
-    border-radius:var(--r);
-    color:var(--bone);
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
     font-family:var(--mono);
     font-size:13px;
-    padding:12px 13px;
-    min-height:46px;
+    padding:13px 14px;
+    min-height:48px;
     transition:border-color .16s var(--ease), box-shadow .16s var(--ease);
   }
   input[type=url]:focus{
-    border-color:var(--signal);
+    border-color:var(--accent);
     outline:none;
-    box-shadow:0 0 0 3px rgba(242,164,19,.12);
+    box-shadow:0 0 0 4px var(--accent-soft);
   }
+  #connState{margin:12px 0 0;font-family:var(--mono);font-size:11.5px}
 
   .foot{
-    font-family:var(--mono);
-    font-size:11px;
-    color:var(--faint);
-    margin-top:34px;
-    line-height:1.7;
+    font-size:12px;
+    color:var(--text-3);
+    margin-top:36px;
+    line-height:1.75;
+    padding-top:22px;
+    border-top:1px solid var(--border);
   }
 
   @media (prefers-reduced-motion:no-preference){
-    .card{animation:rise .32s var(--ease) both}
-    @keyframes rise{from{opacity:0;transform:translateY(8px)}}
-    .status{animation:rise .24s var(--ease) both}
-    /* Working indicator — suppressed on .err, which is a settled state. */
+    .card{animation:rise .36s var(--ease) both}
+    @keyframes rise{from{opacity:0;transform:translateY(10px)}}
+    .status{animation:rise .26s var(--ease) both}
     .status:not(.err)::before{animation:pulse 1.4s ease-in-out infinite}
-    @keyframes pulse{50%{opacity:.25;transform:scale(.8)}}
+    @keyframes pulse{50%{opacity:.28;transform:scale(.78)}}
     .sk::after{
       content:"";
       position:absolute;inset:0;
       transform:translateX(-100%);
-      background:linear-gradient(90deg,transparent,rgba(230,237,241,.07),transparent);
-      animation:shimmer 1.3s infinite;
+      background:linear-gradient(90deg,transparent,rgba(180,191,205,.13),transparent);
+      animation:shimmer 1.35s infinite;
     }
     @keyframes shimmer{100%{transform:translateX(100%)}}
   }
 </style>
 </head>
 <body>
+<div class="glow" aria-hidden="true"></div>
 
-<h1 class="mark"><i></i>Grab</h1>
-<p class="lede">Paste a post link. Pick a quality. Save the file.</p>
+<div class="brand"><i></i>Grab</div>
+<h1>Save any <em>public video</em>.</h1>
+<p class="sub">Paste a link. Pick a quality. Keep the file.</p>
+
+<div class="chips">
+  <span class="chip">X / Twitter</span>
+  <span class="chip">Instagram</span>
+  <span class="chip">Facebook</span>
+</div>
 
 <div class="field">
   <textarea id="link" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
@@ -348,10 +445,12 @@
 
 <details id="conn">
   <summary>Connection</summary>
-  <p>Browsers block pages from reading other sites directly. If lookups or saves fail, deploy the included Cloudflare Worker and paste its address here.</p>
-  <input id="proxy" type="url" inputmode="url" autocomplete="off" spellcheck="false"
-    placeholder="https://your-worker.workers.dev/">
-  <p id="connState" style="margin-bottom:0"></p>
+  <div class="conn-body">
+    <p>Browsers block pages from reading other sites directly. If lookups or saves fail, deploy the included Cloudflare Worker and paste its address here.</p>
+    <input id="proxy" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+      placeholder="https://your-worker.workers.dev/">
+    <p id="connState"></p>
+  </div>
 </details>
 
 <p class="foot">
