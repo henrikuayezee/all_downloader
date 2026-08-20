@@ -99,7 +99,9 @@
     font-size:14px;
     line-height:1.5;
     padding:14px 15px;
-    word-break:break-all;
+    /* Long URLs still break mid-string, but ordinary words don't —
+       break-all was splitting the placeholder as "Insta / gram". */
+    overflow-wrap:anywhere;
   }
   textarea::placeholder{color:var(--faint)}
   textarea:focus{
@@ -209,6 +211,11 @@
     background:var(--panel-2);
     border-top:1px solid var(--line);
     border-bottom:1px solid var(--line);
+    /* The poster identifies the video, it isn't the content — capping it
+       keeps a 9:16 reel from burying the Save button below the fold.
+       Landscape posters sit well under this and are unaffected. */
+    max-height:42vh;
+    object-fit:cover;
     opacity:0;
     transition:opacity .3s var(--ease);
   }
