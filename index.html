@@ -15,14 +15,25 @@
     --ink:#0C1216;
     --panel:#141F26;
     --panel-2:#0F1A20;
+    --panel-3:#18242C;   /* raised / hover surface */
     --line:#22333D;
+    --line-2:#2B404C;    /* hover border */
     --bone:#E6EDF1;
+    --text-2:#B8C9D3;    /* body copy on panels */
     --dim:#7C93A1;
+    --faint:#4E6673;     /* placeholders, footer */
     --signal:#F2A413;
+    --signal-2:#FFB92E;  /* signal, hover */
     --bad:#E0674A;
+    --bad-line:#4A2A22;
+    --bad-bg:#1A100D;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --r:10px;
+    --r-sm:6px;
+    --ease:cubic-bezier(.2,.7,.3,1);
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+    --shadow-lg:0 12px 32px -14px rgba(0,0,0,.7);
   }
   *{box-sizing:border-box}
   html,body{margin:0}
@@ -88,10 +99,16 @@
     font-size:14px;
     line-height:1.5;
     padding:14px 15px;
-    word-break:break-all;
+    /* Long URLs still break mid-string, but ordinary words don't —
+       break-all was splitting the placeholder as "Insta / gram". */
+    overflow-wrap:anywhere;
   }
-  textarea::placeholder{color:#4E6673}
-  textarea:focus{border-color:var(--signal);outline:none}
+  textarea::placeholder{color:var(--faint)}
+  textarea:focus{
+    border-color:var(--signal);
+    outline:none;
+    box-shadow:0 0 0 3px rgba(242,164,19,.12);
+  }
 
   .row{display:flex;gap:10px;margin-top:12px}
   button{
@@ -105,32 +122,64 @@
     background:transparent;
     color:var(--bone);
     padding:13px 16px;
+    min-height:46px;           /* comfortable touch target */
     cursor:pointer;
     -webkit-tap-highlight-color:transparent;
+    transition:background-color .16s var(--ease), border-color .16s var(--ease),
+               color .16s var(--ease), transform .08s var(--ease), opacity .16s var(--ease);
   }
-  button:active{transform:translateY(1px)}
-  button[disabled]{opacity:.45;cursor:default}
+  button:active{transform:translateY(1px) scale(.994)}
+  button[disabled]{opacity:.45;cursor:default;transform:none}
   .primary{
     flex:1;
     background:var(--signal);
     border-color:var(--signal);
-    color:#0C1216;
+    color:var(--ink);
+    box-shadow:var(--shadow);
+  }
+  @media (hover:hover){
+    button:not(.primary):not([disabled]):hover{
+      background:var(--panel-3);
+      border-color:var(--line-2);
+    }
+    .primary:not([disabled]):hover{
+      background:var(--signal-2);
+      border-color:var(--signal-2);
+    }
   }
 
   /* ---- status ---- */
   .status{
     font-family:var(--mono);
     font-size:12.5px;
+    line-height:1.55;
     margin-top:18px;
-    padding:12px 14px;
+    padding:12px 14px 12px 34px;
     border-radius:var(--r);
     border:1px solid var(--line);
     background:var(--panel-2);
     color:var(--dim);
+    position:relative;
   }
-  .status.err{border-color:#4A2A22;color:var(--bad);background:#1A100D}
+  /* Dot marker: pulses while working, goes solid red on error. */
+  .status::before{
+    content:"";
+    position:absolute;
+    left:14px;top:50%;
+    width:7px;height:7px;margin-top:-3.5px;
+    border-radius:50%;
+    background:var(--signal);
+  }
+  .status.err{border-color:var(--bad-line);color:var(--bad);background:var(--bad-bg)}
+  .status.err::before{background:var(--bad);animation:none}
   .status a{color:inherit}
   .hidden{display:none !important}
+
+  /* ---- skeleton (shown while a lookup is in flight) ---- */
+  .sk{background:var(--line);border-radius:var(--r-sm);position:relative;overflow:hidden}
+  .sk-av{width:34px;height:34px;border-radius:50%;flex:none}
+  .sk-line{height:9px}
+  .sk-poster{height:190px;border-radius:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 
   /* ---- result ---- */
   .card{
@@ -139,21 +188,38 @@
     border-radius:var(--r);
     overflow:hidden;
     background:var(--panel);
+    box-shadow:var(--shadow-lg);
   }
   .who{display:flex;gap:11px;align-items:center;padding:14px 15px}
-  .who img{width:34px;height:34px;border-radius:50%;flex:none;background:var(--line)}
+  .who img{width:34px;height:34px;border-radius:50%;flex:none;background:var(--line);object-fit:cover}
   .who b{display:block;font-size:14px;font-weight:600;line-height:1.2}
   .who span{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
   .caption{
     padding:0 15px 14px;
     font-size:13.5px;
-    color:#B8C9D3;
+    color:var(--text-2);
     display:-webkit-box;
     -webkit-line-clamp:3;
     -webkit-box-orient:vertical;
     overflow:hidden;
   }
-  .poster{display:block;width:100%;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  /* Poster keeps its own slot so the card doesn't jump when the image
+     arrives. aspect-ratio is set inline when the dimensions are known. */
+  .poster{
+    display:block;
+    width:100%;
+    background:var(--panel-2);
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    /* The poster identifies the video, it isn't the content — capping it
+       keeps a 9:16 reel from burying the Save button below the fold.
+       Landscape posters sit well under this and are unaffected. */
+    max-height:42vh;
+    object-fit:cover;
+    opacity:0;
+    transition:opacity .3s var(--ease);
+  }
+  .poster.ready{opacity:1}
 
   .spec{
     font-family:var(--mono);
@@ -168,16 +234,22 @@
     grid-template-columns:1fr auto;
     grid-template-areas:"meta save" "bar save";
     align-items:center;
-    gap:4px 14px;
-    padding:12px 15px 14px;
+    gap:6px 14px;
+    padding:13px 15px 15px;
     border-top:1px solid var(--line);
+    transition:background-color .16s var(--ease);
   }
   .variant:first-of-type{border-top:none}
+  @media (hover:hover){
+    .variant:hover{background:var(--panel-3)}
+  }
   .variant .meta{
     grid-area:meta;
     font-family:var(--mono);
     font-size:13px;
     letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;   /* digits stop jittering while counting */
+    transition:color .16s var(--ease);
   }
   .variant .meta em{font-style:normal;color:var(--dim)}
   .variant .bar{
@@ -191,9 +263,10 @@
     display:block;height:100%;
     background:var(--signal);
     width:0;
+    border-radius:2px;
     transition:width .18s linear;
   }
-  .variant .save{grid-area:save;padding:11px 15px}
+  .variant .save{grid-area:save;padding:11px 15px;min-height:44px}
 
   /* ---- connection ---- */
   details{margin-top:30px;border-top:1px solid var(--line);padding-top:18px}
@@ -209,6 +282,7 @@
   summary::-webkit-details-marker{display:none}
   summary::after{content:" +";}
   details[open] summary::after{content:" –";}
+  summary:hover{color:var(--bone)}
   details p{font-size:13px;color:var(--dim);line-height:1.5}
   input[type=url]{
     width:100%;
@@ -219,20 +293,38 @@
     font-family:var(--mono);
     font-size:13px;
     padding:12px 13px;
+    min-height:46px;
+    transition:border-color .16s var(--ease), box-shadow .16s var(--ease);
   }
-  input[type=url]:focus{border-color:var(--signal);outline:none}
+  input[type=url]:focus{
+    border-color:var(--signal);
+    outline:none;
+    box-shadow:0 0 0 3px rgba(242,164,19,.12);
+  }
 
   .foot{
     font-family:var(--mono);
     font-size:11px;
-    color:#4E6673;
+    color:var(--faint);
     margin-top:34px;
     line-height:1.7;
   }
 
   @media (prefers-reduced-motion:no-preference){
-    .card{animation:rise .32s cubic-bezier(.2,.7,.3,1) both}
+    .card{animation:rise .32s var(--ease) both}
     @keyframes rise{from{opacity:0;transform:translateY(8px)}}
+    .status{animation:rise .24s var(--ease) both}
+    /* Working indicator — suppressed on .err, which is a settled state. */
+    .status:not(.err)::before{animation:pulse 1.4s ease-in-out infinite}
+    @keyframes pulse{50%{opacity:.25;transform:scale(.8)}}
+    .sk::after{
+      content:"";
+      position:absolute;inset:0;
+      transform:translateX(-100%);
+      background:linear-gradient(90deg,transparent,rgba(230,237,241,.07),transparent);
+      animation:shimmer 1.3s infinite;
+    }
+    @keyframes shimmer{100%{transform:translateX(100%)}}
   }
 </style>
 </head>
@@ -375,7 +467,10 @@
         video: metaTag(html, "og:video:secure_url") || metaTag(html, "og:video"),
         image: metaTag(html, "og:image"),
         title: metaTag(html, "og:title"),
-        desc: metaTag(html, "og:description")
+        desc: metaTag(html, "og:description"),
+        // Used only to reserve the poster's space before it loads.
+        pw: +metaTag(html, "og:image:width") || 0,
+        ph: +metaTag(html, "og:image:height") || 0
       };
     });
   }
@@ -384,6 +479,8 @@
     return {
       variants: [{ src: meta.video, w: 0, h: 0, bitrate: 0, label: "Best available quality" }],
       poster: meta.image || "",
+      posterW: meta.pw,
+      posterH: meta.ph,
       caption: meta.desc || "",
       name: meta.title || platformName(platform),
       handle: ""
@@ -459,14 +556,40 @@
     var user = data.user || {};
     var poster = (data.mediaDetails && data.mediaDetails[0] && data.mediaDetails[0].media_url_https) ||
                  (data.video && data.video.poster) || "";
+    // The top variant's dimensions match the poster's aspect, so they're
+    // enough to reserve its space before the image loads.
+    var orig = (data.mediaDetails && data.mediaDetails[0] && data.mediaDetails[0].original_info) || {};
     return {
       variants: variants,
       poster: poster,
+      posterW: orig.width || variants[0].w || 0,
+      posterH: orig.height || variants[0].h || 0,
       caption: data.text || "",
       name: user.name || "Unknown",
       handle: user.screen_name || "video",
       avatar: user.profile_image_url_https || ""
     };
+  }
+
+  /* ---------- skeleton ----------
+     Stands in for the card while a lookup is in flight, so the layout
+     settles once instead of popping in piece by piece. Purely decorative,
+     so it's hidden from assistive tech. */
+  function showSkeleton() {
+    resultEl.innerHTML =
+      '<div class="card" aria-hidden="true">' +
+        '<div class="who">' +
+          '<div class="sk sk-av"></div>' +
+          '<div style="flex:1">' +
+            '<div class="sk sk-line" style="width:44%"></div>' +
+            '<div class="sk sk-line" style="width:26%;margin-top:7px"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="sk sk-poster"></div>' +
+        '<div class="variant">' +
+          '<div class="sk sk-line" style="width:38%"></div>' +
+        '</div>' +
+      '</div>';
   }
 
   /* ---------- render ----------
@@ -494,7 +617,13 @@
               '<div><b>' + esc(norm.name || "Unknown") + '</b>' +
               (norm.handle ? '<span>@' + esc(norm.handle) + '</span>' : '') + '</div></div>';
     if (norm.caption) html += '<div class="caption">' + esc(norm.caption) + '</div>';
-    if (norm.poster) html += '<img class="poster" alt="" src="' + esc(norm.poster) + '">';
+    if (norm.poster) {
+      // Reserve the poster's slot up front when we know its shape, so the
+      // card doesn't reflow when the image lands.
+      var ratio = (norm.posterW && norm.posterH)
+        ? ' style="aspect-ratio:' + norm.posterW + '/' + norm.posterH + '"' : '';
+      html += '<img class="poster" alt=""' + ratio + ' src="' + esc(norm.poster) + '">';
+    }
     html += '<div class="spec">' + variants.length + ' file' + (variants.length > 1 ? 's' : '') + ' available</div>';
 
     for (var i = 0; i < variants.length; i++) {
@@ -516,6 +645,18 @@
     }
     html += '</div>';
     resultEl.innerHTML = html;
+
+    // Fade the poster in once it decodes; show it regardless if it fails,
+    // so a broken image never leaves an invisible gap.
+    var posterEl = resultEl.querySelector(".poster");
+    if (posterEl) {
+      if (posterEl.complete) {
+        posterEl.className = "poster ready";
+      } else {
+        posterEl.addEventListener("load", function () { posterEl.className = "poster ready"; });
+        posterEl.addEventListener("error", function () { posterEl.className = "poster ready"; });
+      }
+    }
 
     var rows = resultEl.querySelectorAll(".variant");
     for (var r = 0; r < rows.length; r++) {
@@ -631,7 +772,7 @@
       return;
     }
 
-    resultEl.innerHTML = "";
+    showSkeleton();
     say("Looking up post " + hit.id + "…");
     findEl.disabled = true;
 
@@ -652,6 +793,7 @@
     task.then(function (norm) {
       render(norm, hit.id, hit.platform);
     }).catch(function (err) {
+      resultEl.innerHTML = "";   // clear the skeleton; the error is the result
       if (String(err.message) === "tombstone") {
         say("That post is protected, deleted, or age-restricted, so the public embed can't see it.", true);
       } else if (String(err.message) === "gone") {
