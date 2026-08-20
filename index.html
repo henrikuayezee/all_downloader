@@ -385,6 +385,12 @@
      routes through it without the Connection box needing to be touched.
      Clearing the box and leaving it blank opts back out to "no proxy". */
   var DEFAULT_PROXY = "https://all-downloader.henrikuaye.workers.dev";
+  /* Opting out is stored as this sentinel rather than "". An empty string
+     is ambiguous: an older build wrote one on every page load, so it can
+     mean "no choice was ever made" just as easily as "no proxy, please".
+     A sentinel only ever gets written by a real edit, so the two cases
+     stay distinguishable and legacy "" self-heals to the default. */
+  var PROXY_OFF = "off";
   var proxy = "";
   function applyProxy(v) {
     proxy = (v || "").trim();
@@ -392,7 +398,7 @@
   }
   function setProxy(v) {
     applyProxy(v);
-    store("proxy", proxy);
+    store("proxy", proxy || PROXY_OFF);
   }
   function via(url) {
     if (!proxy) return url;
@@ -839,7 +845,17 @@
     setProxy(qProxy);
   } else {
     var stored = store("proxy");
-    var saved = (typeof stored === "undefined") ? DEFAULT_PROXY : stored;
+    var saved;
+    if (typeof stored === "undefined" || stored === "") {
+      // Never set, or the empty string an older build wrote on every load.
+      // Neither is a real choice, so use the default and let the stale
+      // value heal itself the next time the box is actually edited.
+      saved = DEFAULT_PROXY;
+    } else if (stored === PROXY_OFF) {
+      saved = "";
+    } else {
+      saved = stored;
+    }
     proxyEl.value = saved || "";
     applyProxy(saved);
   }
