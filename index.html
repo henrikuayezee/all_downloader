@@ -336,42 +336,42 @@
     background:var(--surface);
   }
 
-  /* ---- connection ---- */
-  details{
-    margin-top:32px;
-    border:1px solid var(--border);
-    border-radius:var(--r);
-    background:var(--surface);
+  /* ---- topbar ---- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .icon{
+    flex:none;
+    width:42px;height:42px;
+    min-height:0;
     padding:0;
-    overflow:hidden;
+    display:inline-flex;align-items:center;justify-content:center;
+    border-radius:var(--pill);
+    color:var(--text-3);
   }
-  summary{
+  @media (hover:hover){ .icon:hover{color:var(--text)} }
+
+  /* ---- settings ---- */
+  .back{
+    min-height:0;
+    padding:9px 15px;
     font-size:13.5px;
-    font-weight:600;
-    letter-spacing:0;
     color:var(--text-2);
-    cursor:pointer;
-    list-style:none;
-    padding:15px 18px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    transition:color .16s var(--ease), background-color .16s var(--ease);
+    border-radius:var(--pill);
   }
-  summary::-webkit-details-marker{display:none}
-  summary::after{
-    content:"";
-    width:7px;height:7px;
-    border-right:1.5px solid currentColor;
-    border-bottom:1.5px solid currentColor;
-    transform:rotate(45deg) translate(-2px,-2px);
-    transition:transform .2s var(--ease);
-    opacity:.65;
+  .settings-title{font-size:clamp(26px,7vw,32px);margin:22px 0 24px}
+  .panel{
+    border:1px solid var(--border);
+    border-radius:var(--r-lg);
+    background:var(--surface);
+    padding:20px 18px;
+    box-shadow:var(--sh-1);
   }
-  details[open] summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
-  summary:hover{color:var(--text)}
-  .conn-body{padding:0 18px 18px}
-  details p{font-size:13px;color:var(--text-3);line-height:1.6;margin:0 0 12px}
+  .panel h2{
+    font-size:15px;
+    font-weight:640;
+    letter-spacing:-.01em;
+    margin:0 0 8px;
+  }
+  .panel p{font-size:13px;color:var(--text-3);line-height:1.6;margin:0 0 14px}
   input[type=url]{
     width:100%;
     background:var(--bg);
@@ -420,43 +420,60 @@
 <body>
 <div class="glow" aria-hidden="true"></div>
 
-<div class="brand"><i></i>Grab</div>
-<h1>Save any <em>public video</em>.</h1>
-<p class="sub">Paste a link. Pick a quality. Keep the file.</p>
-
-<div class="chips">
-  <span class="chip">X / Twitter</span>
-  <span class="chip">Instagram</span>
-  <span class="chip">Facebook</span>
+<div class="topbar">
+  <div class="brand"><i></i>Grab</div>
+  <button id="toSettings" class="icon" type="button" aria-label="Settings">
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+      stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
 </div>
 
-<div class="field">
-  <textarea id="link" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-    placeholder="https://x.com/user/status/... or an Instagram / Facebook video link"></textarea>
-</div>
-<div class="row">
-  <button id="paste" class="hidden" type="button">Paste</button>
-  <button id="find" class="primary" type="button">Find video</button>
-</div>
-<p class="note">Instagram and Facebook only expose the public page, so this only works on posts that don't require login, and gives one quality rather than several.</p>
+<div id="mainView">
+  <h1>Save any <em>public video</em>.</h1>
+  <p class="sub">Paste a link. Pick a quality. Keep the file.</p>
 
-<div id="status" class="status hidden"></div>
-<div id="result"></div>
+  <div class="chips">
+    <span class="chip">X / Twitter</span>
+    <span class="chip">Instagram</span>
+    <span class="chip">Facebook</span>
+  </div>
 
-<details id="conn">
-  <summary>Connection</summary>
-  <div class="conn-body">
+  <div class="field">
+    <textarea id="link" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+      placeholder="https://x.com/user/status/... or an Instagram / Facebook video link"></textarea>
+  </div>
+  <div class="row">
+    <button id="paste" class="hidden" type="button">Paste</button>
+    <button id="find" class="primary" type="button">Find video</button>
+  </div>
+  <p class="note">Instagram and Facebook only expose the public page, so this only works on posts that don't require login, and gives one quality rather than several.</p>
+
+  <div id="status" class="status hidden"></div>
+  <div id="result"></div>
+
+  <p class="foot">
+    Reads each platform's public post data — Twitter's embed API, or Instagram/Facebook's page preview tags. Protected, private, and login-gated posts are invisible to it.<br>
+    Save what you have the right to save.
+  </p>
+</div>
+
+<div id="settingsView" class="hidden">
+  <button id="toMain" class="back" type="button">
+    <span aria-hidden="true">&#8592;</span> Back
+  </button>
+  <h1 class="settings-title">Settings</h1>
+
+  <div class="panel">
+    <h2>Connection</h2>
     <p>Browsers block pages from reading other sites directly. If lookups or saves fail, deploy the included Cloudflare Worker and paste its address here.</p>
     <input id="proxy" type="url" inputmode="url" autocomplete="off" spellcheck="false"
       placeholder="https://your-worker.workers.dev/">
     <p id="connState"></p>
   </div>
-</details>
-
-<p class="foot">
-  Reads each platform's public post data — Twitter's embed API, or Instagram/Facebook's page preview tags. Protected, private, and login-gated posts are invisible to it.<br>
-  Save what you have the right to save.
-</p>
+</div>
 
 <script>
 (function () {
@@ -465,7 +482,17 @@
   var $ = function (id) { return document.getElementById(id); };
   var linkEl = $("link"), findEl = $("find"), pasteEl = $("paste"),
       statusEl = $("status"), resultEl = $("result"), proxyEl = $("proxy"),
-      connStateEl = $("connState"), connEl = $("conn");
+      connStateEl = $("connState"),
+      mainView = $("mainView"), settingsView = $("settingsView");
+
+  /* ---------- views ---------- */
+  function showSettings(on) {
+    mainView.className = on ? "hidden" : "";
+    settingsView.className = on ? "" : "hidden";
+    // The gear is the way in; once you're here, Back is the way out.
+    $("toSettings").className = on ? "icon hidden" : "icon";
+    window.scrollTo(0, 0);
+  }
 
   /* ---------- tiny storage that never throws ---------- */
   var mem = {};
@@ -832,7 +859,7 @@
       window.open(v.src, "_blank", "noopener");
       say("Your browser blocked the direct save, so the video opened in a new tab — " +
           "press and hold it to save. To fix this for good, set up the worker under Connection.", true);
-      connEl.open = true;
+      showSettings(true);
     });
   }
 
@@ -905,12 +932,15 @@
         say("No post with that ID. Check the link.", true);
       } else if (err instanceof TypeError) {
         say("Couldn't reach " + platformName(hit.platform) + " from the browser. Set up the worker under Connection below, then try again.", true);
-        connEl.open = true;
+        showSettings(true);
       } else {
         say("Lookup failed (" + esc(err.message) + "). Try again in a moment.", true);
       }
     }).then(function () { findEl.disabled = false; });
   }
+
+  $("toSettings").addEventListener("click", function () { showSettings(true); });
+  $("toMain").addEventListener("click", function () { showSettings(false); });
 
   findEl.addEventListener("click", run);
   linkEl.addEventListener("keydown", function (e) {
