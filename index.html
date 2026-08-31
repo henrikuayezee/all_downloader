@@ -5,73 +5,74 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grab — video downloader</title>
 <meta name="description" content="Paste a post link, pick a quality, save the video.">
-<meta name="theme-color" content="#0C1216">
+<meta name="theme-color" content="#F5F5F0">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   :root{
-    --ink:#0C1216;
-    --panel:#141F26;
-    --panel-2:#0F1A20;
-    --line:#22333D;
-    --bone:#E6EDF1;
-    --dim:#7C93A1;
-    --signal:#F2A413;
-    --bad:#E0674A;
+    --paper:#F5F5F0;
+    --paper-2:#EAEAE1;
+    --ink:#0A0A0A;
+    --line:#0A0A0A;
+    --line-soft:#DEDED4;
+    --dim:#5A5A54;
+    --signal:#2B44FF;
+    --bad:#E0302A;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --r:10px;
+    --r:0px;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
-    background:var(--ink);
-    color:var(--bone);
+    background:var(--paper);
+    color:var(--ink);
     font-family:var(--sans);
     font-size:16px;
     line-height:1.45;
     -webkit-font-smoothing:antialiased;
     padding:
-      calc(env(safe-area-inset-top) + 28px)
-      calc(env(safe-area-inset-right) + 18px)
-      calc(env(safe-area-inset-bottom) + 40px)
-      calc(env(safe-area-inset-left) + 18px);
+      calc(env(safe-area-inset-top) + 32px)
+      calc(env(safe-area-inset-right) + 20px)
+      calc(env(safe-area-inset-bottom) + 50px)
+      calc(env(safe-area-inset-left) + 20px);
     max-width:620px;
     margin:0 auto;
   }
-  ::selection{background:var(--signal);color:var(--ink)}
-  :focus-visible{outline:2px solid var(--signal);outline-offset:2px;border-radius:4px}
+  ::selection{background:var(--signal);color:#fff}
+  :focus-visible{outline:2.5px solid var(--signal);outline-offset:2px;border-radius:0}
 
   /* ---- masthead ---- */
   .mark{
-    font-family:var(--mono);
-    font-size:13px;
-    letter-spacing:.34em;
+    font-family:var(--sans);
+    font-size:38px;
+    font-weight:900;
     text-transform:uppercase;
-    font-weight:700;
+    letter-spacing:-.02em;
     margin:0;
-    display:flex;align-items:center;gap:10px;
+    display:flex;align-items:center;gap:12px;
   }
   .mark i{
-    width:13px;height:13px;display:block;flex:none;
+    width:24px;height:24px;display:block;flex:none;
     background:var(--signal);
-    clip-path:polygon(50% 100%,0 42%,32% 42%,32% 0,68% 0,68% 42%,100% 42%);
+    border:2.5px solid var(--ink);
   }
   .lede{
     font-family:var(--mono);
-    font-size:12.5px;
-    color:var(--dim);
-    margin:10px 0 26px;
+    font-size:13.5px;
+    color:var(--ink);
+    text-transform:uppercase;
+    margin:10px 0 28px;
     letter-spacing:.01em;
   }
   .note{
     font-family:var(--mono);
-    font-size:11.5px;
+    font-size:12px;
     color:var(--dim);
-    margin:12px 0 0;
-    line-height:1.5;
+    margin:16px 2px 0;
+    line-height:1.55;
   }
 
   /* ---- input ---- */
@@ -80,111 +81,126 @@
     width:100%;
     min-height:92px;
     resize:none;
-    background:var(--panel-2);
-    border:1px solid var(--line);
+    background:#fff;
+    border:2.5px solid var(--ink);
     border-radius:var(--r);
-    color:var(--bone);
+    color:var(--ink);
     font-family:var(--mono);
     font-size:14px;
     line-height:1.5;
     padding:14px 15px;
     word-break:break-all;
   }
-  textarea::placeholder{color:#4E6673}
-  textarea:focus{border-color:var(--signal);outline:none}
+  textarea::placeholder{color:#9B9B92}
+  textarea:focus{outline:none;box-shadow:5px 5px 0 var(--signal)}
 
-  .row{display:flex;gap:10px;margin-top:12px}
+  .row{display:flex;gap:12px;margin-top:14px}
   button{
-    font-family:var(--mono);
-    font-size:12.5px;
-    letter-spacing:.12em;
+    font-family:var(--sans);
+    font-size:13.5px;
+    letter-spacing:.02em;
     text-transform:uppercase;
-    font-weight:700;
+    font-weight:800;
     border-radius:var(--r);
-    border:1px solid var(--line);
-    background:transparent;
-    color:var(--bone);
-    padding:13px 16px;
+    border:2.5px solid var(--ink);
+    background:#fff;
+    color:var(--ink);
+    padding:14px 18px;
     cursor:pointer;
+    box-shadow:4px 4px 0 var(--ink);
     -webkit-tap-highlight-color:transparent;
   }
-  button:active{transform:translateY(1px)}
+  button:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
   button[disabled]{opacity:.45;cursor:default}
   .primary{
     flex:1;
     background:var(--signal);
-    border-color:var(--signal);
-    color:#0C1216;
+    border-color:var(--ink);
+    color:#fff;
   }
 
   /* ---- status ---- */
   .status{
     font-family:var(--mono);
     font-size:12.5px;
-    margin-top:18px;
-    padding:12px 14px;
+    margin-top:20px;
+    padding:14px 16px;
     border-radius:var(--r);
-    border:1px solid var(--line);
-    background:var(--panel-2);
-    color:var(--dim);
+    border:2.5px solid var(--ink);
+    background:#fff;
+    color:var(--ink);
+    box-shadow:4px 4px 0 var(--ink);
   }
-  .status.err{border-color:#4A2A22;color:var(--bad);background:#1A100D}
+  .status.err{border-color:var(--bad);color:#7A1F1A;background:#FFF1EF;box-shadow:4px 4px 0 var(--bad)}
   .status a{color:inherit}
   .hidden{display:none !important}
 
   /* ---- result ---- */
   .card{
-    margin-top:24px;
-    border:1px solid var(--line);
+    margin-top:28px;
+    border:2.5px solid var(--ink);
     border-radius:var(--r);
     overflow:hidden;
-    background:var(--panel);
+    background:#fff;
+    box-shadow:6px 6px 0 var(--ink);
   }
-  .who{display:flex;gap:11px;align-items:center;padding:14px 15px}
-  .who img{width:34px;height:34px;border-radius:50%;flex:none;background:var(--line)}
-  .who b{display:block;font-size:14px;font-weight:600;line-height:1.2}
-  .who span{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .who{display:flex;gap:12px;align-items:center;padding:16px 17px;border-bottom:2.5px solid var(--ink)}
+  .who img{width:36px;height:36px;border-radius:0;flex:none;background:var(--signal);border:2px solid var(--ink);object-fit:cover}
+  .who b{
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    font-size:15px;
+    font-weight:800;
+    line-height:1.25;
+    text-transform:uppercase;
+  }
+  .who span{font-family:var(--mono);font-size:12px;color:var(--dim)}
   .caption{
-    padding:0 15px 14px;
-    font-size:13.5px;
-    color:#B8C9D3;
+    padding:14px 17px;
+    font-size:14px;
+    color:var(--ink);
+    border-bottom:2.5px solid var(--ink);
     display:-webkit-box;
     -webkit-line-clamp:3;
     -webkit-box-orient:vertical;
     overflow:hidden;
   }
-  .poster{display:block;width:100%;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .poster{display:block;width:100%;max-height:420px;object-fit:cover;border-bottom:2.5px solid var(--ink)}
 
   .spec{
     font-family:var(--mono);
-    font-size:10.5px;
-    letter-spacing:.22em;
+    font-size:11px;
+    letter-spacing:.1em;
     text-transform:uppercase;
     color:var(--dim);
-    padding:14px 15px 4px;
+    font-weight:700;
+    padding:14px 17px 4px;
   }
   .variant{
     display:grid;
     grid-template-columns:1fr auto;
     grid-template-areas:"meta save" "bar save";
     align-items:center;
-    gap:4px 14px;
-    padding:12px 15px 14px;
-    border-top:1px solid var(--line);
+    gap:6px 14px;
+    padding:13px 17px 15px;
+    border-top:2px solid var(--line-soft);
   }
   .variant:first-of-type{border-top:none}
   .variant .meta{
     grid-area:meta;
     font-family:var(--mono);
-    font-size:13px;
+    font-size:13.5px;
+    font-weight:700;
     letter-spacing:.02em;
   }
-  .variant .meta em{font-style:normal;color:var(--dim)}
+  .variant .meta em{font-style:normal;color:var(--dim);font-weight:400}
   .variant .bar{
     grid-area:bar;
-    height:3px;
-    background:var(--line);
-    border-radius:2px;
+    height:6px;
+    background:var(--paper-2);
+    border:1.5px solid var(--ink);
     overflow:hidden;
   }
   .variant .bar i{
@@ -193,40 +209,41 @@
     width:0;
     transition:width .18s linear;
   }
-  .variant .save{grid-area:save;padding:11px 15px}
+  .variant .save{grid-area:save;padding:10px 16px;box-shadow:3px 3px 0 var(--ink);font-size:12px}
 
   /* ---- connection ---- */
-  details{margin-top:30px;border-top:1px solid var(--line);padding-top:18px}
+  details{margin-top:32px;border-top:2.5px solid var(--ink);padding-top:20px}
   summary{
     font-family:var(--mono);
-    font-size:11px;
-    letter-spacing:.22em;
+    font-size:12px;
+    letter-spacing:.1em;
     text-transform:uppercase;
-    color:var(--dim);
+    font-weight:700;
+    color:var(--ink);
     cursor:pointer;
     list-style:none;
   }
   summary::-webkit-details-marker{display:none}
   summary::after{content:" +";}
   details[open] summary::after{content:" –";}
-  details p{font-size:13px;color:var(--dim);line-height:1.5}
+  details p{font-size:13.5px;color:var(--dim);line-height:1.5}
   input[type=url]{
     width:100%;
-    background:var(--panel-2);
-    border:1px solid var(--line);
+    background:#fff;
+    border:2.5px solid var(--ink);
     border-radius:var(--r);
-    color:var(--bone);
+    color:var(--ink);
     font-family:var(--mono);
     font-size:13px;
     padding:12px 13px;
   }
-  input[type=url]:focus{border-color:var(--signal);outline:none}
+  input[type=url]:focus{outline:none;box-shadow:4px 4px 0 var(--signal)}
 
   .foot{
     font-family:var(--mono);
-    font-size:11px;
-    color:#4E6673;
-    margin-top:34px;
+    font-size:11.5px;
+    color:var(--dim);
+    margin-top:36px;
     line-height:1.7;
   }
 
@@ -507,7 +524,7 @@
         var rate = v.bitrate ? Math.round(v.bitrate / 1000) + " kbps" : "unknown rate";
         metaText = size + ' <em>· ' + rate + '</em>';
       }
-      var pct = v.bitrate ? Math.max(6, Math.round(v.bitrate / top * 100)) : 100;
+      var pct = v.bitrate ? Math.max(6, Math.round(v.bitrate / top * 100)) : 0;
       html += '<div class="variant" data-i="' + i + '">' +
                 '<div class="meta">' + metaText + '</div>' +
                 '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
