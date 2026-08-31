@@ -41,7 +41,7 @@ If Twitter changes the response shape, `pickVariants()` and `lookup()` are the o
 ## Conventions
 
 - No frameworks, no build tooling, no npm. If a change seems to need a dependency, question it first.
-- Design tokens live in `:root` in `index.html`. Petrol ground (`--ink`), marigold accent (`--signal`), monospace for anything numeric. Don't introduce new colours outside those variables.
+- Design tokens live in `:root` in `index.html`: paper ground (`--paper`), near-black ink for text and 2.5px borders (`--ink`), cobalt accent (`--signal`), monospace for anything numeric, zero border-radius (`--r:0px`) and hard offset box-shadows throughout — a bold-graphic identity, not a soft one. Don't introduce new colours outside those variables, and don't reach for `border-radius` or soft shadows; the flat/bordered/offset-shadow language is the point. `icon-*.png` follow the same palette — regenerate them (Pillow) if the mark or its colours change, same as before.
 - Error copy says what happened and what to do about it. No apologies, no vague "something went wrong".
 - Every failure path has a fallback — a blocked download opens the video in a tab rather than dead-ending.
 - Keep it working without the proxy, just degraded.
