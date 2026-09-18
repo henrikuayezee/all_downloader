@@ -534,7 +534,7 @@
       if (v.label) {
         metaText = esc(v.label);
       } else if (v.isGif) {
-        metaText = 'GIF loop <em>· may not open in Gallery or other apps</em>';
+        metaText = 'GIF loop <em>· converts to video on save (first time downloads ~32 MB)</em>';
       } else {
         var size = v.w ? v.w + "&times;" + v.h : "mp4";
         var rate = v.bitrate ? Math.round(v.bitrate / 1000) + " kbps" : "unknown rate";
@@ -562,6 +562,79 @@
   }
 
   /* ---------- download ---------- */
+  /* ---------- GIF-loop re-encoding ----------
+     Twitter's GIF-to-MP4 conversions are byte-valid but built purely for
+     looping in a <video> tag; some Android video players/gallery indexers
+     reject them outright even though browsers play them fine (see
+     CLAUDE.md). ffmpeg.wasm is loaded lazily, only the first time a save
+     actually needs it.
+
+     ffmpeg.js itself must be same-origin: internally it does
+     `new Worker(url, {type:"module"})` to spin up its class worker, and
+     browsers refuse to construct a Worker from a cross-origin script URL
+     regardless of CORS headers — that's why the tiny loader files
+     (vendor/ffmpeg/ffmpeg.js + its 814.ffmpeg.js chunk, ~8KB total) are
+     vendored into this repo rather than pulled from a CDN. The ~32MB
+     core+wasm don't have that restriction — they're loaded with plain
+     fetch() *inside* that worker, which cross-origin CORS (unpkg sends
+     access-control-allow-origin: *) allows fine, so those stay on a CDN
+     instead of bloating this repo. Only the single-threaded core is used
+     — it needs no SharedArrayBuffer / cross-origin-isolation headers, so
+     this keeps working on a plain static host with no special config.
+     Any failure here (old browser, blocked CDN, conversion error) falls
+     back to saving the original file untouched. */
+  var FFMPEG_JS = "vendor/ffmpeg/ffmpeg.js";
+  var FFMPEG_CORE_JS = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js";
+  var FFMPEG_CORE_WASM = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm";
+  var ffmpegPromise = null;
+  var ffmpegProgressCB = null;
+
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error("couldn't load " + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function getFFmpeg() {
+    if (ffmpegPromise) return ffmpegPromise;
+    var ready = window.FFmpegWASM ? Promise.resolve() : loadScript(FFMPEG_JS);
+    ffmpegPromise = ready.then(function () {
+      var ffmpeg = new window.FFmpegWASM.FFmpeg();
+      ffmpeg.on("progress", function (e) {
+        if (ffmpegProgressCB) ffmpegProgressCB(Math.max(0, Math.min(1, e.progress)));
+      });
+      return ffmpeg.load({ coreURL: FFMPEG_CORE_JS, wasmURL: FFMPEG_CORE_WASM })
+        .then(function () { return ffmpeg; });
+    }).catch(function (err) {
+      ffmpegPromise = null; // let the next attempt retry instead of staying stuck on a failed load
+      throw err;
+    });
+    return ffmpegPromise;
+  }
+  function reencodeGif(blob, onProgress) {
+    return getFFmpeg().then(function (ffmpeg) {
+      return blob.arrayBuffer().then(function (buf) {
+        return ffmpeg.writeFile("in.mp4", new Uint8Array(buf));
+      }).then(function () {
+        ffmpegProgressCB = onProgress || null;
+        return ffmpeg.exec([
+          "-i", "in.mp4",
+          "-c:v", "libx264", "-profile:v", "baseline", "-level", "3.0",
+          "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an",
+          "out.mp4"
+        ]);
+      }).then(function () {
+        ffmpegProgressCB = null;
+        return ffmpeg.readFile("out.mp4");
+      }).then(function (data) {
+        return new Blob([data.buffer], { type: "video/mp4" });
+      });
+    });
+  }
+
   function download(v, row, filename) {
     var btn = row.querySelector(".save");
     var fill = row.querySelector(".bar i");
@@ -602,6 +675,17 @@
           return pump();
         });
       })();
+    }).then(function (blob) {
+      if (!v.isGif || typeof WebAssembly === "undefined") return blob;
+      fill.style.width = "0%";
+      meta.innerHTML = "Loading converter…";
+      return reencodeGif(blob, function (progress) {
+        var pct = Math.round(progress * 100);
+        fill.style.width = pct + "%";
+        meta.innerHTML = "Converting " + pct + "%…";
+      }).catch(function () {
+        return blob; // conversion failed — still save the original GIF-loop file
+      });
     }).then(function (blob) {
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");

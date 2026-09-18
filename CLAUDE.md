@@ -1,6 +1,6 @@
 # Grab
 
-A paste-a-link video downloader for Twitter/X, Instagram, and Facebook, shipped as an installable PWA. Static files only — no build step, no bundler, no dependencies.
+A paste-a-link video downloader for Twitter/X, Instagram, and Facebook, shipped as an installable PWA. Static files only — no build step, no bundler. One deliberate, narrowly-scoped dependency exists (ffmpeg.wasm, for re-encoding Twitter's GIF-sourced videos — see below); everything else stays dependency-free.
 
 ## Architecture
 
@@ -12,6 +12,7 @@ Everything runs in the browser. There is no backend except an optional CORS prox
 - `worker.js` — Cloudflare Worker CORS proxy. Deployed separately, not part of the static site.
 - `wrangler.toml` — tells Cloudflare's Git integration that `worker.js` is the Worker entry point, so connecting this repo to a Cloudflare Worker project auto-deploys on push instead of needing a manual copy-paste into their dashboard editor.
 - `icon-*.png` — generated, not hand-drawn. Regenerate with Pillow if the mark changes.
+- `vendor/ffmpeg/` — two small files (`ffmpeg.js` + its `814.ffmpeg.js` worker chunk, ~8KB total) vendored from `@ffmpeg/ffmpeg`, used only to re-encode Twitter's GIF-sourced videos. See "GIF re-encoding" below for why these two specifically are committed instead of loaded from a CDN like everything else.
 
 ## Two-tier extraction: Twitter's API vs Instagram/Facebook's OG tags
 
@@ -32,6 +33,18 @@ It also means Instagram/Facebook lookups only work for posts a logged-out visito
 
 If Twitter changes the response shape, `pickVariants()` and `lookup()` are the only places to touch. If Instagram or Facebook change their page markup, `metaTag()` and `fetchPageMeta()` are the only places to touch.
 
+## GIF re-encoding (the one dependency)
+
+Twitter's GIF-to-MP4 conversions (`isGif` variants, see above) are byte-valid but built purely for looping in a `<video>` tag; they've been observed failing to open, thumbnail, or appear in the gallery on some Android video players even though they play fine in a browser. The only real fix is re-encoding, not just relabeling — a diagnosis reached and confirmed live: the same file downloaded byte-identical through the worker, parsed as a structurally sound MP4 (`ftyp`/`moov`/`mdat` fully accounted for, standard `avc1`/H.264, sane duration), yet a real device still rejected it, while a matching non-GIF video tweet saved and displayed fine — isolating the fault to Twitter's GIF-conversion pipeline itself, not this app's download path.
+
+`reencodeGif()` in `index.html` re-encodes with ffmpeg.wasm (`libx264`, baseline profile, `yuv420p`, `+faststart`, no audio track) — the most broadly device-compatible H.264 encode available — only when `v.isGif` is true, and only once the user clicks Save (never on page load, never for a normal video). This is a real, load-bearing exception to "no dependencies," made with the user's explicit sign-off after being told the concrete cost: a ~32MB one-time library fetch per browser, real CPU time to transcode, and no functionality on browsers without WebAssembly. Any failure in this path — old browser, blocked CDN, a conversion error — falls back to saving the original file untouched, per the "every failure path has a fallback" convention below.
+
+The loading split is deliberate, not arbitrary, and took real trial-and-error to land on:
+- `ffmpeg.js` and its worker chunk (`814.ffmpeg.js`) **must** be same-origin. Internally the library does `new Worker(url, {type: "module"})` to spin up its class worker, and browsers refuse to construct a `Worker` from a cross-origin script URL — this is a hard same-origin restriction, not a missing-CORS-header problem, and no amount of `Access-Control-Allow-Origin: *` on the CDN side fixes it. That's why these two tiny files (~8KB combined) are vendored into `vendor/ffmpeg/` instead of pulled from unpkg like everything else.
+- The ~32MB core (`ffmpeg-core.js` + `ffmpeg-core.wasm`) does **not** have that restriction — it's loaded with a plain `fetch()` from inside that worker, which cross-origin CORS allows fine (unpkg serves `access-control-allow-origin: *`). Vendoring 32MB into this repo for no reason would be a bad trade, so those two stay on a CDN, fetched lazily.
+- Only the single-threaded core (`@ffmpeg/core`, not `@ffmpeg/core-mt`) is used. The multi-threaded core needs `SharedArrayBuffer`, which needs `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy` response headers — headers a plain static host like GitHub Pages can't be configured to send. The single-threaded core needs none of that, so this keeps working on any static host with zero server config, at the cost of a slower encode.
+- Versions are pinned (`@ffmpeg/ffmpeg@0.12.15`, `@ffmpeg/core@0.12.10`) rather than left to float, and re-verified end-to-end (real tweet, real transcode, real byte-level output check) before shipping — this loading dance is fragile enough across versions that an untested bump is not safe to assume works.
+
 ## Proxy behaviour
 
 `via()` wraps every outbound URL when a proxy is configured. The proxy is stored in localStorage, but reads and writes go through a `store()` helper wrapped in try/catch so private-mode browsers degrade to memory instead of throwing.
@@ -40,7 +53,7 @@ If Twitter changes the response shape, `pickVariants()` and `lookup()` are the o
 
 ## Conventions
 
-- No frameworks, no build tooling, no npm. If a change seems to need a dependency, question it first.
+- No frameworks, no build tooling, no npm. If a change seems to need a dependency, question it first — ffmpeg.wasm (see "GIF re-encoding" above) is the one deliberate exception, added only after confirming no lighter fix existed and getting explicit sign-off on the cost.
 - Design tokens live in `:root` in `index.html`: paper ground (`--paper`), near-black ink for text and 2.5px borders (`--ink`), cobalt accent (`--signal`), monospace for anything numeric, zero border-radius (`--r:0px`) and hard offset box-shadows throughout — a bold-graphic identity, not a soft one. Don't introduce new colours outside those variables, and don't reach for `border-radius` or soft shadows; the flat/bordered/offset-shadow language is the point. `icon-*.png` follow the same palette — regenerate them (Pillow) if the mark or its colours change, same as before.
 - Error copy says what happened and what to do about it. No apologies, no vague "something went wrong".
 - Every failure path has a fallback — a blocked download opens the video in a tab rather than dead-ending.
