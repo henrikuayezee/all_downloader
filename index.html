@@ -622,7 +622,7 @@
         ffmpegProgressCB = onProgress || null;
         return ffmpeg.exec([
           "-i", "in.mp4",
-          "-c:v", "libx264", "-profile:v", "baseline", "-level", "3.0",
+          "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "baseline", "-level", "3.0",
           "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an",
           "out.mp4"
         ]);
