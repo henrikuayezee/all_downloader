@@ -446,14 +446,21 @@
     for (var i = 0; i < details.length; i++) {
       var m = details[i];
       if ((m.type === "video" || m.type === "animated_gif") && m.video_info) {
-        list = list.concat(m.video_info.variants || []);
+        var vs = m.video_info.variants || [];
+        for (var vi = 0; vi < vs.length; vi++) {
+          list.push({ v: vs[vi], isGif: m.type === "animated_gif" });
+        }
       }
     }
-    if (!list.length && data.video && data.video.variants) list = data.video.variants;
+    if (!list.length && data.video && data.video.variants) {
+      var fallbackIsGif = data.video.contentType === "gif";
+      var vs2 = data.video.variants;
+      for (var fi = 0; fi < vs2.length; fi++) list.push({ v: vs2[fi], isGif: fallbackIsGif });
+    }
 
     var out = [];
     for (var j = 0; j < list.length; j++) {
-      var v = list[j];
+      var v = list[j].v;
       var src = v.url || v.src;
       var kind = v.content_type || v.type || "";
       if (!src || kind.indexOf("mp4") === -1) continue;
@@ -462,7 +469,8 @@
         src: src,
         w: dim ? +dim[1] : 0,
         h: dim ? +dim[2] : 0,
-        bitrate: v.bitrate || 0
+        bitrate: v.bitrate || 0,
+        isGif: list[j].isGif
       });
     }
     out.sort(function (a, b) { return (b.bitrate || b.h) - (a.bitrate || a.h); });
@@ -525,6 +533,8 @@
       var metaText;
       if (v.label) {
         metaText = esc(v.label);
+      } else if (v.isGif) {
+        metaText = 'GIF loop <em>· may not open in Gallery or other apps</em>';
       } else {
         var size = v.w ? v.w + "&times;" + v.h : "mp4";
         var rate = v.bitrate ? Math.round(v.bitrate / 1000) + " kbps" : "unknown rate";
