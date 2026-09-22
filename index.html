@@ -504,11 +504,16 @@
      Renders a normalized result — one entry from Twitter's multi-variant
      list, or the single og:video entry from Instagram/Facebook. Same card
      markup either way. */
-  function render(norm, id, platform) {
+  function render(norm, id, platform, raw) {
     if (!norm || !norm.variants.length) {
       resultEl.innerHTML = "";
       if (platform === "twitter") {
         say("No video in that post — it may be images only.", true);
+      } else if (platform === "instagram" && /\/reel\//i.test(raw || "")) {
+        // Instagram serves Reels an image-only preview card — no og:video at
+        // all, for any User-Agent. Saying "private or login-gated" here would
+        // be a lie about a public post, so say what's actually true.
+        say("Instagram no longer exposes Reel videos to logged-out visitors, so Reels can't be fetched. Regular posts and IGTV links may still work.", true);
       } else {
         say("No public video found on that page. It's likely private, login-gated, or not a video post.", true);
       }
@@ -767,7 +772,7 @@
     }
 
     task.then(function (norm) {
-      render(norm, hit.id, hit.platform);
+      render(norm, hit.id, hit.platform, raw);
     }).catch(function (err) {
       if (String(err.message) === "tombstone") {
         say("That post is protected, deleted, or age-restricted, so the public embed can't see it.", true);

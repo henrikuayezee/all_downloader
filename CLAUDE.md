@@ -22,7 +22,9 @@ Instagram and Facebook have no equivalent unauthenticated API. There is no JSON 
 
 This is why Instagram/Facebook results carry exactly one "variant" instead of a ranked list: the preview data only ever exposes one rendition, there's nothing to rank. `normalizeTwitter()` and `normalizeMeta()` both produce the same shape (`variants`, `poster`, `caption`, `name`, `handle`) so `render()` doesn't care which platform it's showing.
 
-It also means Instagram/Facebook lookups only work for posts a logged-out visitor can see — private accounts, some Reels, and anything login-gated return no `og:video` tag at all, and that's the page telling the truth about what it will show a stranger, not a bug in `fetchPageMeta()`.
+It also means Instagram/Facebook lookups only work for posts a logged-out visitor can see — private accounts and anything login-gated return no `og:video` tag at all, and that's the page telling the truth about what it will show a stranger, not a bug in `fetchPageMeta()`.
+
+**Instagram Reels no longer work at all, and can't be made to.** Measured against a public Reel (Sept 2026): with a desktop Chrome UA, Instagram returns a 634KB JavaScript shell containing *zero* `og:` tags. With `facebookexternalhit/1.1` it does serve og tags — `og:title`, `og:image`, `og:description` — but deliberately omits `og:video`, marking the page `medium=image` / `twitter:card=summary_large_image`, i.e. an image-only preview card. The 700KB response contains no `.mp4`, no `video_url`, no `video_versions`, no `twitter:player` — the video URL isn't withheld from one particular parse, it isn't in the logged-out response in any form. The legacy `?__a=1&__d=dis` JSON endpoint 404s behind a login wall, and `instagram_oembed` returns only embed markup. So there is nothing left to scrape, and `render()` says so plainly for `/reel/` links rather than blaming the user's post for being "private." Don't spend time re-attempting this with different UAs or regexes; the only routes left require authentication, which is out of scope (see below).
 
 ## How the lookup works
 
@@ -62,7 +64,7 @@ The loading split is deliberate, not arbitrary, and took real trial-and-error to
 
 ## Worker allowlist
 
-`worker.js` can't allowlist Instagram/Facebook by exact hostname the way it does Twitter's fixed set of hosts, because their CDNs serve media off per-request subdomains (`scontent-*.cdninstagram.com`, `video-*.fbcdn.net`, etc.). `isAllowed()` in `worker.js` is the one place to touch if a new CDN host pattern shows up — add an exact hostname to `ALLOWED_EXACT` or a new suffix to `ALLOWED_SUFFIXES`, whichever fits. Post-page fetches (as opposed to media fetches) also get a desktop User-Agent and `Accept-Language` header there, since Instagram/Facebook tend to strip or refuse markup for requests that look script-like; that host list is `POST_PAGE_HOSTS`.
+`worker.js` can't allowlist Instagram/Facebook by exact hostname the way it does Twitter's fixed set of hosts, because their CDNs serve media off per-request subdomains (`scontent-*.cdninstagram.com`, `video-*.fbcdn.net`, etc.). `isAllowed()` in `worker.js` is the one place to touch if a new CDN host pattern shows up — add an exact hostname to `ALLOWED_EXACT` or a new suffix to `ALLOWED_SUFFIXES`, whichever fits. Post-page fetches (as opposed to media fetches) also get a crawler User-Agent and `Accept-Language` header there; that host list is `POST_PAGE_HOSTS`. The UA is `facebookexternalhit/1.1` rather than a desktop browser string, because og: tags exist for link-preview crawlers and Instagram now serves them to almost nobody else — a desktop Chrome UA gets zero og: tags back. Send it bare: adding the usual `(+http://www.facebook.com/externalhit_uatext.php)` suffix gets a 301 to nowhere.
 
 ## Testing
 
@@ -74,3 +76,4 @@ The loading split is deliberate, not arbitrary, and took real trial-and-error to
 - Protected, deleted, private, and age-restricted posts on any platform. Twitter's embed endpoint and Instagram/Facebook's OG tags only see what a logged-out visitor sees, and no amount of client-side work changes that.
 - Any form of authenticated access to Twitter, Instagram, or Facebook.
 - Multiple quality options for Instagram/Facebook. The page preview data only ever has one rendition to offer.
+- Instagram Reels. Instagram stopped publishing their video URLs to logged-out visitors entirely (see "Two-tier extraction" above for the measurements). Recovering them would need a signed-in session, which the next line rules out.

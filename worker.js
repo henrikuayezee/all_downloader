@@ -82,15 +82,18 @@ export default {
       return text(403, `${parsed.hostname} isn't on the allow list.`);
     }
 
-    // Instagram and Facebook often refuse or strip down markup for
-    // requests that look script-like, so post-page fetches get a normal
-    // desktop User-Agent and an Accept-Language header. Media/API hosts
-    // keep the plain UA they've always used.
+    // Post pages get a link-preview crawler's User-Agent, because og: tags
+    // exist for crawlers and Instagram now serves them to almost nobody
+    // else. Measured on a public Reel: a desktop Chrome UA gets back a
+    // 634KB JavaScript shell with zero og: tags, while
+    // facebookexternalhit gets og:title / og:image / og:description. (It
+    // still withholds og:video for Reels — that's Instagram's choice and
+    // no UA recovers it — but partial metadata beats none.) Send it bare:
+    // appending the usual "(+http://www.facebook.com/externalhit_uatext.php)"
+    // suffix gets a 301 to nowhere. Media/API hosts keep the plain UA.
     const headers = { "user-agent": "Mozilla/5.0", "accept": "*/*" };
     if (POST_PAGE_HOSTS.includes(parsed.hostname)) {
-      headers["user-agent"] =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+      headers["user-agent"] = "facebookexternalhit/1.1";
       headers["accept-language"] = "en-US,en;q=0.9";
     }
 
