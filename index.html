@@ -566,6 +566,66 @@
     }
   }
 
+  /* ---------- stamp the save time ----------
+     Gallery apps file videos under the creation time stored inside the
+     MP4 (mvhd/tkhd/mdhd), not when the file landed on disk — and platforms
+     write their own encode time there, so a Twitter video shows up under
+     the day it was posted. Overwrite those with now. Only the moov box is
+     read and rewritten; everything else (the media itself) is passed
+     through by reference via Blob.slice, so a big video isn't copied.
+     Anything unexpected hands back the original blob untouched. */
+  var MP4_EPOCH = Date.UTC(1904, 0, 1);
+  function boxType(dv, at) {
+    return String.fromCharCode(dv.getUint8(at), dv.getUint8(at + 1), dv.getUint8(at + 2), dv.getUint8(at + 3));
+  }
+  function boxSize(dv, at, limit) {
+    var size = dv.getUint32(at), hdr = 8;
+    if (size === 1) { size = dv.getUint32(at + 8) * 4294967296 + dv.getUint32(at + 12); hdr = 16; }
+    else if (size === 0) size = limit - at;
+    return { size: size, hdr: hdr };
+  }
+  function patchTimes(dv, start, end, now) {
+    var pos = start;
+    while (pos + 8 <= end) {
+      var b = boxSize(dv, pos, end), type = boxType(dv, pos + 4);
+      if (b.size < b.hdr || pos + b.size > end) return;
+      if (type === "mvhd" || type === "tkhd" || type === "mdhd") {
+        var t = pos + b.hdr + 4;
+        if (dv.getUint8(pos + b.hdr) === 1) {
+          dv.setUint32(t, 0); dv.setUint32(t + 4, now);
+          dv.setUint32(t + 8, 0); dv.setUint32(t + 12, now);
+        } else {
+          dv.setUint32(t, now); dv.setUint32(t + 4, now);
+        }
+      } else if (type === "moov" || type === "trak" || type === "mdia") {
+        patchTimes(dv, pos + b.hdr, pos + b.size, now);
+      }
+      pos += b.size;
+    }
+  }
+  function stampNow(blob) {
+    if (!blob.slice || !blob.arrayBuffer) return Promise.resolve(blob);
+    var now = Math.floor((Date.now() - MP4_EPOCH) / 1000);
+    function findMoov(pos) {
+      if (pos + 8 > blob.size) return Promise.resolve(null);
+      return blob.slice(pos, pos + 16).arrayBuffer().then(function (buf) {
+        var dv = new DataView(buf);
+        if (dv.byteLength < 8) return null;
+        var b = boxSize(dv, 0, blob.size - pos);
+        if (b.size < b.hdr) return null;
+        if (boxType(dv, 4) === "moov") return { start: pos, end: pos + b.size };
+        return findMoov(pos + b.size);
+      });
+    }
+    return findMoov(0).then(function (m) {
+      if (!m || m.end > blob.size) return blob;
+      return blob.slice(m.start, m.end).arrayBuffer().then(function (buf) {
+        patchTimes(new DataView(buf), 0, buf.byteLength, now);
+        return new Blob([blob.slice(0, m.start), buf, blob.slice(m.end)], { type: "video/mp4" });
+      });
+    }).catch(function () { return blob; });
+  }
+
   /* ---------- download ---------- */
   /* ---------- GIF-loop re-encoding ----------
      Twitter's GIF-to-MP4 conversions are byte-valid but built purely for
@@ -691,7 +751,7 @@
       }).catch(function () {
         return blob; // conversion failed — still save the original GIF-loop file
       });
-    }).then(function (blob) {
+    }).then(stampNow).then(function (blob) {
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = url;
