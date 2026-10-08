@@ -6,7 +6,7 @@
  *
  * Usage:  https://your-worker.workers.dev/?url=<encoded post or media url>
  *
- * Only Twitter/X, Instagram and Facebook hosts are reachable through it —
+ * Only Twitter/X, Instagram, Facebook and Snapchat hosts are reachable through it —
  * see isAllowed() below — so it can't be turned into an open proxy for the
  * rest of the internet.
  */
@@ -24,16 +24,20 @@ const ALLOWED_EXACT = [
   "facebook.com",
   "www.facebook.com",
   "m.facebook.com",
-  "fb.watch"
+  "fb.watch",
+  "snapchat.com",
+  "www.snapchat.com"
 ];
 
 // Suffix matches: Instagram/Facebook serve media off per-request
-// subdomains (scontent-*.cdninstagram.com, video-*.fbcdn.net, etc.), so
-// these can't be pinned to exact hostnames. Add new CDN host patterns
-// here if a platform starts using another one.
+// subdomains (scontent-*.cdninstagram.com, video-*.fbcdn.net, etc.), and
+// Snapchat's og:video points at bolt-gcdn.sc-cdn.net, so these can't be
+// pinned to exact hostnames. Add new CDN host patterns here if a platform
+// starts using another one.
 const ALLOWED_SUFFIXES = [
   ".cdninstagram.com",
-  ".fbcdn.net"
+  ".fbcdn.net",
+  ".sc-cdn.net"
 ];
 
 // The subset of ALLOWED_EXACT that serves post pages (HTML) rather than
@@ -44,7 +48,9 @@ const POST_PAGE_HOSTS = [
   "facebook.com",
   "www.facebook.com",
   "m.facebook.com",
-  "fb.watch"
+  "fb.watch",
+  "snapchat.com",
+  "www.snapchat.com"
 ];
 
 function isAllowed(hostname) {

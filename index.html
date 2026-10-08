@@ -260,13 +260,13 @@
 
 <div class="field">
   <textarea id="link" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-    placeholder="https://x.com/user/status/... or an Instagram / Facebook video link"></textarea>
+    placeholder="https://x.com/user/status/... or an Instagram / Facebook / Snapchat video link"></textarea>
 </div>
 <div class="row">
   <button id="paste" class="hidden" type="button">Paste</button>
   <button id="find" class="primary" type="button">Find video</button>
 </div>
-<p class="note">Instagram and Facebook only expose the public page, so this only works on posts that don't require login, and gives one quality rather than several.</p>
+<p class="note">Instagram, Facebook and Snapchat only expose the public page, so this only works on posts that don't require login, and gives one quality rather than several.</p>
 
 <div id="status" class="status hidden"></div>
 <div id="result"></div>
@@ -280,7 +280,7 @@
 </details>
 
 <p class="foot">
-  Reads each platform's public post data — Twitter's embed API, or Instagram/Facebook's page preview tags. Protected, private, and login-gated posts are invisible to it.<br>
+  Reads each platform's public post data — Twitter's embed API, or Instagram/Facebook/Snapchat's page preview tags. Protected, private, and login-gated posts are invisible to it.<br>
   Save what you have the right to save.
 </p>
 
@@ -351,10 +351,16 @@
     if (host === "twitter.com" || host === "x.com") return "twitter";
     if (host === "instagram.com") return "instagram";
     if (host === "facebook.com" || host === "fb.watch") return "facebook";
+    if (host === "snapchat.com") return "snapchat";
     return null;
   }
   function platformName(p) {
-    return p === "twitter" ? "Twitter" : p === "instagram" ? "Instagram" : "Facebook";
+    return p === "twitter" ? "Twitter" : p === "instagram" ? "Instagram" :
+           p === "snapchat" ? "Snapchat" : "Facebook";
+  }
+  function snapchatId(text) {
+    var m = String(text).match(/snapchat\.com\/(?:@[^\/?#]+\/)?spotlight\/([A-Za-z0-9_-]+)/i);
+    return m ? m[1] : null;
   }
   function instagramId(text) {
     var m = String(text).match(/instagram\.com\/(?:[^\/?#]+\/)?(?:p|reel|tv)\/([A-Za-z0-9_-]+)/i);
@@ -404,12 +410,16 @@
   }
   function normalizeMeta(meta, platform) {
     if (!meta.video) return null;
+    var name = meta.title || platformName(platform), handle = "";
+    // Snapchat's og:title reads "190.8K likes, … | Display Name (@handle) | Posted … | Spotlight".
+    var who = platform === "snapchat" && name.match(/\|\s*([^|]+?)\s*\(@([^)\s]+)\)\s*\|/);
+    if (who) { name = who[1]; handle = who[2]; }
     return {
       variants: [{ src: meta.video, w: 0, h: 0, bitrate: 0, label: "Best available quality" }],
       poster: meta.image || "",
       caption: meta.desc || "",
-      name: meta.title || platformName(platform),
-      handle: ""
+      name: name,
+      handle: handle
     };
   }
 
@@ -787,6 +797,8 @@
       id = instagramId(s);
     } else if (platform === "facebook") {
       id = facebookId(s);
+    } else if (platform === "snapchat") {
+      id = snapchatId(s);
     }
     return { platform: platform, id: id };
   }
@@ -801,14 +813,14 @@
 
     if (!hit.platform) {
       resultEl.innerHTML = "";
-      say("That doesn't look like a Twitter/X, Instagram, or Facebook link.", true);
+      say("That doesn't look like a Twitter/X, Instagram, Facebook, or Snapchat link.", true);
       return;
     }
     if (!hit.id) {
       resultEl.innerHTML = "";
       say("That's a " + platformName(hit.platform) + " link, but not a post/video URL " +
-          (hit.platform === "instagram" ?
-            "(expected a /p/, /reel/ or /tv/ link)." :
+          (hit.platform === "instagram" ? "(expected a /p/, /reel/ or /tv/ link)." :
+           hit.platform === "snapchat" ? "(expected a Spotlight link — snapchat.com/spotlight/…)." :
             "(expected /watch, /videos/, /reel/, or an fb.watch link).") , true);
       return;
     }

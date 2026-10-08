@@ -1,6 +1,6 @@
 # Grab
 
-A paste-a-link video downloader for Twitter/X, Instagram, and Facebook that installs to your home screen. Static files only — no build step, no server of your own except an optional CORS proxy.
+A paste-a-link video downloader for Twitter/X, Instagram, Facebook, and Snapchat Spotlight that installs to your home screen. Static files only — no build step, no server of your own except an optional CORS proxy.
 
 ## Files
 
@@ -35,7 +35,7 @@ To test locally first: `python3 -m http.server 8000` and open `http://localhost:
 
 ## 3. Deploy the proxy (probably necessary)
 
-Browsers won't let a page on your domain read responses from Twitter, Instagram, or Facebook's servers unless they opt in, and they mostly don't. Without the proxy, lookups may fail and saves will fall back to opening the video in a new tab for a long-press save. The proxy makes both work properly, including the download progress bar — and for Instagram/Facebook it's what fetches the post page itself, not just the media.
+Browsers won't let a page on your domain read responses from Twitter, Instagram, Facebook, or Snapchat's servers unless they opt in, and they mostly don't. Without the proxy, lookups may fail and saves will fall back to opening the video in a new tab for a long-press save. The proxy makes both work properly, including the download progress bar — and for Instagram/Facebook/Snapchat it's what fetches the post page itself, not just the media.
 
 **Option A — connect the repo (auto-redeploys on every push):**
 
@@ -55,7 +55,7 @@ From then on, any change to `worker.js` that gets pushed to `main` redeploys the
 
 Future changes to `worker.js` need to be copy-pasted into Cloudflare's editor again by hand.
 
-The worker only forwards requests to Twitter's own hosts (`cdn.syndication.twimg.com`, `video.twimg.com`, `pbs.twimg.com`, `abs.twimg.com`), Instagram/Facebook's post-page domains (`instagram.com`, `facebook.com`, `m.facebook.com`, `fb.watch`), and their CDN subdomains (`*.cdninstagram.com`, `*.fbcdn.net`) — see `isAllowed()` in `worker.js` — so nobody who finds the URL can use it as a general-purpose proxy. The free plan covers 100,000 requests a day.
+The worker only forwards requests to Twitter's own hosts (`cdn.syndication.twimg.com`, `video.twimg.com`, `pbs.twimg.com`, `abs.twimg.com`), Instagram/Facebook/Snapchat's post-page domains (`instagram.com`, `facebook.com`, `m.facebook.com`, `fb.watch`, `snapchat.com`), and their CDN subdomains (`*.cdninstagram.com`, `*.fbcdn.net`, `*.sc-cdn.net`) — see `isAllowed()` in `worker.js` — so nobody who finds the URL can use it as a general-purpose proxy. The free plan covers 100,000 requests a day.
 
 Once you've got a worker deployed, you don't have to paste its address in on every browser/device: set `DEFAULT_PROXY` near the top of `index.html`'s script to your worker's URL, and it's used automatically whenever the Connection box hasn't been explicitly set (or explicitly cleared) on that browser.
 
@@ -63,14 +63,16 @@ Once you've got a worker deployed, you don't have to paste its address in on eve
 
 **Twitter/X:** Grab pulls the tweet ID out of whatever you paste, then asks the same public endpoint Twitter's own embed widgets use for that post's data. That comes back with every MP4 rendition Twitter encoded, so the app lists them by resolution and bitrate instead of guessing which one you want.
 
-**Instagram/Facebook:** neither platform has an equivalent public API. Grab instead fetches the post's own page and reads the Open Graph preview tags (`og:video`, `og:image`, `og:title`) embedded in its HTML — the same data a link-preview card would use. That only ever yields one quality, so Instagram/Facebook results show a single "Save" option rather than a list.
+**Instagram/Facebook/Snapchat:** none of these has an equivalent public API. Grab instead fetches the post's own page and reads the Open Graph preview tags (`og:video`, `og:image`, `og:title`) embedded in its HTML — the same data a link-preview card would use. That only ever yields one quality, so these results show a single "Save" option rather than a list. For Snapchat that means Spotlight links (`snapchat.com/spotlight/…`).
 
 Either way, picking a quality streams it into a blob and hands it to the browser as a file download.
 
 ## Limits
 
 - Protected, private, deleted, suspended and age-restricted posts return nothing on any platform. Twitter's embed endpoint and Instagram/Facebook's page tags only see what a logged-out visitor sees.
-- Instagram and Facebook give one quality, not several — there's no ranked list of renditions to draw from, just the page's own preview data.
+- Instagram, Facebook and Snapchat give one quality, not several — there's no ranked list of renditions to draw from, just the page's own preview data.
+- Instagram Reels don't work: Instagram no longer puts the video link in what logged-out visitors are sent.
+- Snapchat: Spotlight only. Stories and short `t.snapchat.com` share links aren't recognised yet.
 - Image-only Twitter posts show "no video". Instagram/Facebook posts with no `og:video` tag show "no public video found."
 - Twitter's endpoint is undocumented; Instagram/Facebook's page markup isn't a stable contract either. If either changes shape, the lookup breaks — the fix lives in `pickVariants()`/`lookup()` for Twitter, or `metaTag()`/`fetchPageMeta()` for Instagram/Facebook.
 - Some very old Twitter posts only have HLS renditions, which need remuxing and are skipped.
