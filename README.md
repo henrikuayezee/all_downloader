@@ -44,7 +44,7 @@ Browsers won't let a page on your domain read responses from Twitter, Instagram,
 3. Copy the address it gives you (`https://something.workers.dev`).
 4. In Grab, open **Connection** and paste it in. It's remembered.
 
-From then on, any change to `worker.js` that gets pushed to `main` redeploys the proxy on its own.
+From then on, any change to `worker.js` that gets pushed to `main` redeploys the proxy on its own. If a push never shows up on the Worker's **Deployments** tab (GitHub lists Cloudflare's check as "queued" with no build behind it), push another commit — Cloudflare builds the latest `main` — and if that one is skipped too, check **Settings → Build** that the Git connection is still authorised.
 
 **Option B — paste it in by hand (no auto-updates):**
 
