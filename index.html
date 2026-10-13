@@ -252,6 +252,10 @@
   }
   .hist-del:active{transform:translate(2px,2px)}
   .hist-note{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin:12px 0 0}
+  .hist-empty{
+    margin:0;padding:16px;border:2px dashed var(--line-soft);
+    font-family:var(--mono);font-size:12.5px;color:var(--dim);
+  }
 
   /* ---- connection ---- */
   details{margin-top:32px;border-top:2.5px solid var(--ink);padding-top:20px}
@@ -313,13 +317,14 @@
 <div id="status" class="status hidden"></div>
 <div id="result"></div>
 
-<section id="hist" class="hist hidden" aria-label="Download history">
+<section id="hist" class="hist" aria-label="Download history">
   <div class="hist-head">
     <h2>History</h2>
-    <button id="histClear" class="hist-clear" type="button">Clear all</button>
+    <button id="histClear" class="hist-clear hidden" type="button">Clear all</button>
   </div>
+  <p id="histEmpty" class="hist-empty">Nothing saved yet. Videos you save will be listed here.</p>
   <ul id="histList"></ul>
-  <p class="hist-note">Kept on this phone only. Tap one to look it up again.</p>
+  <p class="hist-note">Kept on this phone only. Tap an entry to look it up again.</p>
 </section>
 
 <details id="conn">
@@ -844,7 +849,7 @@
      as small JPEG data URLs because Instagram/Facebook poster links are
      signed and expire within days. */
   var HIST_KEY = "history", HIST_MAX = 100;
-  var histEl = $("hist"), histListEl = $("histList");
+  var histListEl = $("histList");
   var histMem = null;
 
   function loadHistory() {
@@ -911,7 +916,8 @@
   }
   function renderHistory() {
     var list = loadHistory();
-    histEl.className = "hist" + (list.length ? "" : " hidden");
+    $("histEmpty").className = "hist-empty" + (list.length ? " hidden" : "");
+    $("histClear").className = "hist-clear" + (list.length ? "" : " hidden");
     var short = { twitter: "X", instagram: "IG", facebook: "FB", snapchat: "SC" };
     var html = "";
     for (var i = 0; i < list.length; i++) {
