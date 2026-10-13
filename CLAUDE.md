@@ -37,6 +37,14 @@ It also means Instagram/Facebook lookups only work for posts a logged-out visito
 
 `stampNow()` exists because gallery apps file a video under the creation time stored *inside* the MP4 (`mvhd`, plus `tkhd`/`mdhd`), not when it landed on disk — and platforms write their own encode time there. Measured on a real case: a Twitter video saved on Sept 29 showed in the gallery under Sept 28 19:21, because its `mvhd` said `2026-09-28T19:21:09Z` — to the second, the time the tweet was posted (decodable from the snowflake ID). `stampNow()` overwrites those timestamps with the save time, handling both 32-bit (v0) and 64-bit (v1) headers and moov-before- or after-mdat layouts. Only the moov box is read and rewritten; the media is passed through by reference via `Blob.slice`, so a large video isn't copied in memory. On that real file it changes 34 bytes out of 2MB, all inside the header. Anything unrecognised (not an MP4, truncated, odd sizes) returns the original blob untouched. It runs after GIF re-encoding, so converted files are stamped too — ffmpeg carries the source's creation time across by default.
 
+## History
+
+`download()` takes an `onSaved` callback that fires only after a confirmed save (not on the open-in-a-tab fallback), and `render()` uses it to call `recordSave()`. Entries live in `localStorage` under `history`: newest first, capped at 100, one per post (`platform:id` key — saving the same post again moves it to the top rather than duplicating). Each holds the pasted link, platform, name, handle, save time and a thumbnail. Tapping an entry puts its link back in the box and runs the lookup again; it does not play a local file, because a web page can't read the phone's Downloads folder and has no idea whether the file still exists.
+
+Thumbnails are stored as 112px JPEG data URLs (~4KB an entry, measured), not as the poster URL, because Instagram/Facebook poster links are signed and expire within days. `makeThumb()` fetches the poster *through the worker* so the canvas isn't tainted by a cross-origin image — which is why `story.snapchat.com` (Snapchat's og:image host) is in the worker allowlist. If anything in that fails, the entry gets a platform-initials tile instead.
+
+`saveHistory()` writes directly rather than through `store()`, because `store()` swallows quota errors and history must know: on a full quota it drops the oldest quarter and retries; with storage blocked (private browsing) it keeps the list in memory for that visit only. `renderHistory()` only inserts a thumbnail that matches `^data:image/jpeg;base64,…$`, so a hand-edited localStorage value can't inject markup.
+
 If Twitter changes the response shape, `pickVariants()` and `lookup()` are the only places to touch. If Instagram or Facebook change their page markup, `metaTag()` and `fetchPageMeta()` are the only places to touch.
 
 ## GIF re-encoding (the one dependency)

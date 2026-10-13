@@ -26,7 +26,8 @@ const ALLOWED_EXACT = [
   "m.facebook.com",
   "fb.watch",
   "snapchat.com",
-  "www.snapchat.com"
+  "www.snapchat.com",
+  "story.snapchat.com" // Spotlight og:image host — the app fetches it for history thumbnails
 ];
 
 // Suffix matches: Instagram/Facebook serve media off per-request

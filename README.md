@@ -67,6 +67,8 @@ Once you've got a worker deployed, you don't have to paste its address in on eve
 
 Either way, picking a quality streams it into a blob and hands it to the browser as a file download.
 
+**History:** every completed save is listed under the result, newest first, with a small thumbnail. It's stored in the browser on that device only — nothing is sent anywhere — and it's a record of what you saved, not the files themselves: tapping an entry looks the post up again. Each entry has a remove button, and there's a Clear all. Clearing the browser's site data, or using a private tab, starts it empty.
+
 ## Limits
 
 - Protected, private, deleted, suspended and age-restricted posts return nothing on any platform. Twitter's embed endpoint and Instagram/Facebook's page tags only see what a logged-out visitor sees.

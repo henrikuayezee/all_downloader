@@ -211,6 +211,48 @@
   }
   .variant .save{grid-area:save;padding:10px 16px;box-shadow:3px 3px 0 var(--ink);font-size:12px}
 
+  /* ---- history ---- */
+  .hist{margin-top:32px;border-top:2.5px solid var(--ink);padding-top:20px}
+  .hist-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .hist-head h2{
+    font-family:var(--mono);font-size:12px;letter-spacing:.1em;
+    text-transform:uppercase;font-weight:700;margin:0;
+  }
+  .hist-clear{padding:7px 11px;font-size:11px;box-shadow:2px 2px 0 var(--ink)}
+  .hist-clear:active{transform:translate(2px,2px)}
+  .hist ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  .hist li{
+    display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;
+    background:#fff;border:2px solid var(--ink);padding:8px 8px 8px 8px;
+  }
+  .hist-open{
+    display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center;
+    width:100%;min-width:0;padding:0;border:0;background:none;box-shadow:none;
+    text-align:left;text-transform:none;letter-spacing:0;font-weight:400;
+    font-family:var(--sans);color:var(--ink);
+  }
+  .hist-open:active{transform:none}
+  .hist-thumb{
+    width:56px;height:56px;display:flex;align-items:center;justify-content:center;
+    object-fit:cover;border:2px solid var(--ink);background:var(--paper-2);
+    font-family:var(--mono);font-size:12px;font-weight:700;
+  }
+  .hist-txt{min-width:0}
+  .hist-txt b{
+    display:block;font-size:14px;font-weight:800;text-transform:uppercase;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .hist-txt span{
+    display:block;margin-top:3px;font-family:var(--mono);font-size:11.5px;color:var(--dim);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .hist-del{
+    width:40px;height:40px;padding:0;font-size:20px;line-height:1;font-weight:700;
+    box-shadow:2px 2px 0 var(--ink);
+  }
+  .hist-del:active{transform:translate(2px,2px)}
+  .hist-note{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin:12px 0 0}
+
   /* ---- connection ---- */
   details{margin-top:32px;border-top:2.5px solid var(--ink);padding-top:20px}
   summary{
@@ -270,6 +312,15 @@
 
 <div id="status" class="status hidden"></div>
 <div id="result"></div>
+
+<section id="hist" class="hist hidden" aria-label="Download history">
+  <div class="hist-head">
+    <h2>History</h2>
+    <button id="histClear" class="hist-clear" type="button">Clear all</button>
+  </div>
+  <ul id="histList"></ul>
+  <p class="hist-note">Kept on this phone only. Tap one to look it up again.</p>
+</section>
 
 <details id="conn">
   <summary>Connection</summary>
@@ -570,7 +621,8 @@
       (function (row) {
         var v = variants[+row.getAttribute("data-i")];
         row.querySelector(".save").addEventListener("click", function () {
-          download(v, row, (norm.handle || platform) + "-" + id + (v.h ? "-" + v.h + "p" : "") + ".mp4");
+          download(v, row, (norm.handle || platform) + "-" + id + (v.h ? "-" + v.h + "p" : "") + ".mp4",
+            function () { recordSave(norm, id, platform, raw); });
         });
       })(rows[r]);
     }
@@ -710,7 +762,7 @@
     });
   }
 
-  function download(v, row, filename) {
+  function download(v, row, filename, onSaved) {
     var btn = row.querySelector(".save");
     var fill = row.querySelector(".bar i");
     var meta = row.querySelector(".meta");
@@ -772,6 +824,7 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
       restore("Saved · " + bytes(blob.size));
       setTimeout(function () { restore(); meta.style.color = ""; }, 4000);
+      if (onSaved) onSaved();
     }).catch(function () {
       restore();
       meta.style.color = "";
@@ -781,6 +834,120 @@
       connEl.open = true;
     });
   }
+
+  /* ---------- history ----------
+     A list of confirmed saves, newest first, kept in this browser's
+     localStorage. It records what was saved, not the files: a web page
+     can't read the phone's Downloads folder, so tapping an entry looks the
+     post up again rather than playing a local copy. Thumbnails are stored
+     as small JPEG data URLs because Instagram/Facebook poster links are
+     signed and expire within days. */
+  var HIST_KEY = "history", HIST_MAX = 100;
+  var histEl = $("hist"), histListEl = $("histList");
+  var histMem = null;
+
+  function loadHistory() {
+    if (histMem) return histMem;
+    try { histMem = JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); } catch (e) {}
+    if (!Array.isArray(histMem)) histMem = [];
+    return histMem;
+  }
+  function saveHistory(list) {
+    histMem = list;
+    var keep = list;
+    for (;;) {
+      try { localStorage.setItem(HIST_KEY, JSON.stringify(keep)); return; }
+      catch (e) {
+        if (!keep.length) return; // storage unavailable (private mode): keep it in memory for this visit
+        keep = keep.slice(0, Math.floor(keep.length * 0.75)); // storage full: drop the oldest quarter
+      }
+    }
+  }
+  function makeThumb(src) {
+    if (!src) return Promise.resolve("");
+    return fetch(via(src), { referrerPolicy: "no-referrer" }).then(function (r) {
+      if (!r.ok) throw new Error("http " + r.status);
+      return r.blob();
+    }).then(function (b) {
+      return new Promise(function (resolve, reject) {
+        var u = URL.createObjectURL(b), img = new Image();
+        img.onload = function () {
+          var s = 112, c = document.createElement("canvas");
+          var w = img.naturalWidth, h = img.naturalHeight, m = Math.min(w, h);
+          c.width = c.height = s;
+          c.getContext("2d").drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, s, s);
+          URL.revokeObjectURL(u);
+          resolve(c.toDataURL("image/jpeg", 0.7));
+        };
+        img.onerror = function () { URL.revokeObjectURL(u); reject(new Error("bad image")); };
+        img.src = u;
+      });
+    }).catch(function () { return ""; });
+  }
+  function recordSave(norm, id, platform, url) {
+    makeThumb(norm.poster).then(function (thumb) {
+      var key = platform + ":" + id;
+      var list = loadHistory().filter(function (e) { return e.key !== key; });
+      list.unshift({
+        key: key, url: url, platform: platform,
+        name: norm.name || platformName(platform), handle: norm.handle || "",
+        thumb: thumb, at: Date.now()
+      });
+      if (list.length > HIST_MAX) list.length = HIST_MAX;
+      saveHistory(list);
+      renderHistory();
+    });
+  }
+  function when(t) {
+    var d = new Date(t), now = new Date(), yest = new Date(now.getTime());
+    yest.setDate(now.getDate() - 1);
+    var time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (d.toDateString() === now.toDateString()) return "Today " + time;
+    if (d.toDateString() === yest.toDateString()) return "Yesterday " + time;
+    var opts = { day: "numeric", month: "short" };
+    if (d.getFullYear() !== now.getFullYear()) opts.year = "numeric";
+    return d.toLocaleDateString([], opts) + " " + time;
+  }
+  function renderHistory() {
+    var list = loadHistory();
+    histEl.className = "hist" + (list.length ? "" : " hidden");
+    var short = { twitter: "X", instagram: "IG", facebook: "FB", snapchat: "SC" };
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i];
+      var thumb = /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(e.thumb || "")
+        ? '<img class="hist-thumb" alt="" src="' + e.thumb + '">'
+        : '<span class="hist-thumb">' + esc(short[e.platform] || "?") + '</span>';
+      html += '<li><button class="hist-open" type="button" data-i="' + i + '">' + thumb +
+                '<span class="hist-txt"><b>' + esc(e.name || "Unknown") + '</b><span>' +
+                  esc(when(e.at)) + ' · ' + esc(platformName(e.platform)) +
+                  (e.handle ? ' · @' + esc(e.handle) : '') +
+                '</span></span></button>' +
+              '<button class="hist-del" type="button" data-i="' + i + '" aria-label="Remove from history">&times;</button></li>';
+    }
+    histListEl.innerHTML = html;
+  }
+  histListEl.addEventListener("click", function (ev) {
+    var b = ev.target;
+    while (b && b !== histListEl && b.tagName !== "BUTTON") b = b.parentNode;
+    if (!b || b === histListEl) return;
+    var list = loadHistory(), i = +b.getAttribute("data-i");
+    if (!list[i]) return;
+    if (b.className === "hist-del") {
+      list.splice(i, 1);
+      saveHistory(list);
+      renderHistory();
+    } else {
+      linkEl.value = list[i].url;
+      window.scrollTo(0, 0);
+      run();
+    }
+  });
+  $("histClear").addEventListener("click", function () {
+    if (!window.confirm("Clear your download history? The videos you saved stay on your phone.")) return;
+    saveHistory([]);
+    renderHistory();
+  });
 
   /* ---------- identify pasted text ---------- */
   function identify(text) {
@@ -905,6 +1072,8 @@
     proxyEl.value = saved || "";
     applyProxy(saved);
   }
+
+  renderHistory();
 
   var shared = q.get("url") || q.get("text") || "";
   if (shared) {
