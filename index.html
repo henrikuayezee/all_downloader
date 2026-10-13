@@ -448,6 +448,7 @@
   }
   function fetchPageMeta(url) {
     return fetch(via(url), { referrerPolicy: "no-referrer" }).then(function (r) {
+      if (r.status === 404) throw new Error("gone");
       if (!r.ok) throw new Error("http " + r.status);
       return r.text();
     }).then(function (html) {
@@ -1016,7 +1017,7 @@
       if (String(err.message) === "tombstone") {
         say("That post is protected, deleted, or age-restricted, so the public embed can't see it.", true);
       } else if (String(err.message) === "gone") {
-        say("No post with that ID. Check the link.", true);
+        say("That post isn't there any more — it was probably deleted, or the link is wrong. Retrying won't bring it back.", true);
       } else if (err instanceof TypeError) {
         say("Couldn't reach " + platformName(hit.platform) + " from the browser. Set up the worker under Connection below, then try again.", true);
         connEl.open = true;
