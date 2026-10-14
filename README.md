@@ -41,6 +41,8 @@ To test locally first: `python3 -m http.server 8000` and open `http://localhost:
 2. On your phone, turn on Developer options → USB debugging, and plug it in.
 3. Press **Run**. To install without a cable instead, build it with `./gradlew assembleDebug` in `android/` and copy `app/build/outputs/apk/debug/app-debug.apk` to the phone; you'll need to allow installs from that source.
 
+For a signed release, `./gradlew assembleRelease bundleRelease` gives `app/build/outputs/apk/release/app-release.apk` (to install directly) and `app/build/outputs/bundle/release/app-release.aab` (to upload to the Play Store). Signing needs a keystore: set `grab.signing` in your `~/.gradle/gradle.properties` to a `keystore.properties` file containing `storeFile`, `storePassword`, `keyAlias` and `keyPassword`. Keep the keystore out of this repo and backed up — without it you can't ship an update to anyone who already has the app.
+
 ## 3. Deploy the proxy (probably necessary)
 
 Browsers won't let a page on your domain read responses from Twitter, Instagram, Facebook, or Snapchat's servers unless they opt in, and they mostly don't. Without the proxy, lookups may fail and saves will fall back to opening the video in a new tab for a long-press save. The proxy makes both work properly, including the download progress bar — and for Instagram/Facebook/Snapchat it's what fetches the post page itself, not just the media.

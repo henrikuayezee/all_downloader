@@ -74,6 +74,8 @@ Verified on the Pixel 10a emulator (Android, WebView inspected over `adb forward
 
 Build: `cd android && ./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`. `local.properties` (gitignored) needs `sdk.dir`; Android Studio writes it on first open.
 
+Release: `./gradlew assembleRelease bundleRelease` → signed `app-release.apk` (sideloading) and `app-release.aab` (Play Store). Signing secrets never enter the repo: `app/build.gradle.kts` reads the Gradle property `grab.signing` (set in the owner's `~/.gradle/gradle.properties`) pointing at `C:/Users/henry/Documents/Grab signing/keystore.properties`, beside `grab-release.jks` (alias `grab`, RSA 4096, SHA-256 `62:69:FA:BB:97:9C:8D:31:…:0B:35`). Without the property the release build still runs, unsigned. Losing that key means no updates to installed copies, so don't regenerate it. The debug and release builds share an application id but not a signature, so a phone must uninstall one to install the other, which wipes that copy's history. Release shrinking (`optimization` with `packageScope` limited to androidx/kotlin) leaves this app's own classes alone, so the `@JavascriptInterface` methods keep their names — confirmed in the release dex — and the release APK was re-tested on the emulator: shared-tweet save to `Movies/Grab` and GIF conversion both work.
+
 ## Proxy behaviour
 
 `via()` wraps every outbound URL when a proxy is configured. The proxy is stored in localStorage, but reads and writes go through a `store()` helper wrapped in try/catch so private-mode browsers degrade to memory instead of throwing.
