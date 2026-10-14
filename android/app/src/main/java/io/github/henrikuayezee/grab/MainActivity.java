@@ -3,10 +3,12 @@ package io.github.henrikuayezee.grab;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.webkit.WebChromeClient;
@@ -39,12 +41,13 @@ public class MainActivity extends Activity {
     private static final Pattern FIRST_URL = Pattern.compile("https?://\\S+");
 
     private WebView web;
+    private FrameLayout root;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setBackgroundColor(getColor(R.color.paper));
         web = new WebView(this);
         web.setBackgroundColor(getColor(R.color.paper));
@@ -121,9 +124,13 @@ public class MainActivity extends Activity {
         getWindow().setDecorFitsSystemWindows(false);
         WindowInsetsController c = getWindow().getInsetsController();
         if (c != null) {
+            // Light icons when the phone is in dark mode, dark icons otherwise; the
+            // page then calls applyDarkMode() with the user's actual choice.
             int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
                     | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
-            c.setSystemBarsAppearance(light, light);
+            boolean night = (getResources().getConfiguration().uiMode
+                    & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            c.setSystemBarsAppearance(night ? 0 : light, light);
         }
         root.setOnApplyWindowInsetsListener((v, insets) -> {
             Insets i = insets.getInsets(WindowInsets.Type.systemBars()
@@ -132,6 +139,33 @@ public class MainActivity extends Activity {
             v.setPadding(i.left, i.top, i.right, i.bottom);
             return WindowInsets.CONSUMED;
         });
+    }
+
+    /**
+     * Called by the page (GrabNative.setDarkMode) whenever its theme changes, so the
+     * strips behind the status and navigation bars match it and their icons stay readable.
+     */
+    void applyDarkMode(boolean dark) {
+        int bg = getColor(dark ? R.color.paper_dark : R.color.paper_light);
+        root.setBackgroundColor(bg);
+        web.setBackgroundColor(bg);
+        getWindow().getDecorView().setBackgroundColor(bg);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                c.setSystemBarsAppearance(dark ? 0 : light, light);
+            }
+        } else {
+            // Android 10: bars are opaque and coloured by the window.
+            getWindow().setStatusBarColor(bg);
+            getWindow().setNavigationBarColor(bg);
+            View d = getWindow().getDecorView();
+            int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            int vis = d.getSystemUiVisibility();
+            d.setSystemUiVisibility(dark ? (vis & ~flags) : (vis | flags));
+        }
     }
 
     @Override

@@ -111,6 +111,14 @@ class GrabBridge {
         activity.getContentResolver().delete(p.uri, null, null);
     }
 
+    /** The page's light/dark toggle, so the system bars can follow it. */
+    @JavascriptInterface
+    public void setDarkMode(boolean dark) {
+        if (activity instanceof MainActivity) {
+            activity.runOnUiThread(() -> ((MainActivity) activity).applyDarkMode(dark));
+        }
+    }
+
     /** navigator.clipboard.readText() doesn't work in a WebView, so Paste asks here instead. */
     @JavascriptInterface
     public String clipboardText() {

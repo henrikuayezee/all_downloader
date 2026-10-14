@@ -1,5 +1,8 @@
 <resources>
-    <!-- Same tokens as :root in index.html -->
+    <!-- Same tokens as :root in index.html. "paper" follows the phone's own
+         dark mode (values-night); the _light/_dark pair is for the in-app toggle. -->
     <color name="paper">#F5F5F0</color>
+    <color name="paper_light">#F5F5F0</color>
+    <color name="paper_dark">#111110</color>
     <color name="signal">#2B44FF</color>
 </resources>
