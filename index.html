@@ -349,6 +349,11 @@
       statusEl = $("status"), resultEl = $("result"), proxyEl = $("proxy"),
       connStateEl = $("connState"), connEl = $("conn");
 
+  /* Inside the Android app (android/), MainActivity injects window.GrabNative.
+     Everything that differs from the website is gated on this. */
+  var NATIVE = !!window.GrabNative;
+  if (NATIVE) connEl.className = "hidden"; // the app always uses the built-in worker
+
   /* ---------- tiny storage that never throws ---------- */
   var mem = {};
   function store(k, v) {
@@ -768,6 +773,36 @@
     });
   }
 
+  /* Android app: hand the finished video to GrabNative in base64 chunks (a
+     JavascriptInterface only takes strings). It writes them into Movies/Grab via
+     MediaStore, so the video shows in the gallery under today's date. */
+  function nativeSave(blob, filename) {
+    var CHUNK = 786432; // bytes per call; base64 makes that ~1 MB of string
+    var id = window.GrabNative.beginSave(filename), pos = 0;
+    if (!id) return Promise.reject(new Error("phone storage refused the file"));
+    function next() {
+      if (pos >= blob.size) {
+        if (!window.GrabNative.finishSave(id)) throw new Error("couldn't finish writing the file");
+        return blob;
+      }
+      var part = blob.slice(pos, pos + CHUNK);
+      return new Promise(function (resolve, reject) {
+        var r = new FileReader();
+        r.onload = function () { resolve(String(r.result).split(",")[1] || ""); };
+        r.onerror = function () { reject(new Error("couldn't read the video")); };
+        r.readAsDataURL(part);
+      }).then(function (b64) {
+        if (!window.GrabNative.appendChunk(id, b64)) throw new Error("couldn't write to phone storage");
+        pos += CHUNK;
+        return next();
+      });
+    }
+    return next().catch(function (e) {
+      try { window.GrabNative.abortSave(id); } catch (x) {}
+      throw e;
+    });
+  }
+
   function download(v, row, filename, onSaved) {
     var btn = row.querySelector(".save");
     var fill = row.querySelector(".bar i");
@@ -820,6 +855,7 @@
         return blob; // conversion failed — still save the original GIF-loop file
       });
     }).then(stampNow).then(function (blob) {
+      if (NATIVE) return nativeSave(blob, filename);
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = url;
@@ -828,12 +864,19 @@
       a.click();
       a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      return blob;
+    }).then(function (blob) {
       restore("Saved · " + bytes(blob.size));
       setTimeout(function () { restore(); meta.style.color = ""; }, 4000);
       if (onSaved) onSaved();
-    }).catch(function () {
+    }).catch(function (err) {
       restore();
       meta.style.color = "";
+      if (NATIVE) {
+        say("Couldn't save that video (" + esc(err && err.message || "unknown error") +
+            "). Check your connection and try again.", true);
+        return;
+      }
       window.open(v.src, "_blank", "noopener");
       say("Your browser blocked the direct save, so the video opened in a new tab — " +
           "press and hold it to save. To fix this for good, set up the worker under Connection.", true);
@@ -1025,8 +1068,12 @@
       } else if (String(err.message) === "gone") {
         say("That post isn't there any more — it was probably deleted, or the link is wrong. Retrying won't bring it back.", true);
       } else if (err instanceof TypeError) {
-        say("Couldn't reach " + platformName(hit.platform) + " from the browser. Set up the worker under Connection below, then try again.", true);
-        connEl.open = true;
+        if (NATIVE) {
+          say("Couldn't reach " + platformName(hit.platform) + ". Check your internet connection, then try again.", true);
+        } else {
+          say("Couldn't reach " + platformName(hit.platform) + " from the browser. Set up the worker under Connection below, then try again.", true);
+          connEl.open = true;
+        }
       } else {
         say("Lookup failed (" + esc(err.message) + "). Try again in a moment.", true);
       }
@@ -1038,7 +1085,16 @@
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); run(); }
   });
 
-  if (navigator.clipboard && navigator.clipboard.readText) {
+  if (NATIVE) {
+    // navigator.clipboard.readText() doesn't work in a WebView; the app reads it natively.
+    pasteEl.className = "";
+    pasteEl.addEventListener("click", function () {
+      var t = window.GrabNative.clipboardText();
+      if (!t) { say("Your clipboard is empty. Copy a post link first.", true); return; }
+      linkEl.value = t;
+      if (looksActionable(t)) run();
+    });
+  } else if (navigator.clipboard && navigator.clipboard.readText) {
     pasteEl.className = "";
     pasteEl.addEventListener("click", function () {
       navigator.clipboard.readText().then(function (t) {
@@ -1088,7 +1144,9 @@
     if (looksActionable(shared)) run();
   }
 
-  if ("serviceWorker" in navigator) {
+  // The app ships its own copy of the page, so a service worker would only risk
+  // serving a stale cached copy after an app update.
+  if ("serviceWorker" in navigator && !NATIVE) {
     window.addEventListener("load", function () {
       try { navigator.serviceWorker.register("sw.js"); } catch (e) {}
     });

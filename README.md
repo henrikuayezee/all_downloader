@@ -33,6 +33,14 @@ To test locally first: `python3 -m http.server 8000` and open `http://localhost:
 - **Android / Chrome** — menu → Add to Home screen. You'll then be able to share a post straight from Twitter into Grab, and it starts looking up immediately.
 - **iOS / Safari** — Share → Add to Home Screen. iOS has no share target, so paste the link in.
 
+### Or install the Android app
+
+`android/` is a real Android app (Android 10 or newer) wrapping the same page. Differences from the website: saved videos go straight into your gallery under **Movies/Grab**, dated when you saved them; you can share a post from the X / Instagram / Facebook / Snapchat apps straight to Grab; and Paste works without a permission prompt. It uses the same Cloudflare worker as the website.
+
+1. In Android Studio, **File → Open** and pick the `android` folder (not the repo root).
+2. On your phone, turn on Developer options → USB debugging, and plug it in.
+3. Press **Run**. To install without a cable instead, build it with `./gradlew assembleDebug` in `android/` and copy `app/build/outputs/apk/debug/app-debug.apk` to the phone; you'll need to allow installs from that source.
+
 ## 3. Deploy the proxy (probably necessary)
 
 Browsers won't let a page on your domain read responses from Twitter, Instagram, Facebook, or Snapchat's servers unless they opt in, and they mostly don't. Without the proxy, lookups may fail and saves will fall back to opening the video in a new tab for a long-press save. The proxy makes both work properly, including the download progress bar — and for Instagram/Facebook/Snapchat it's what fetches the post page itself, not just the media.

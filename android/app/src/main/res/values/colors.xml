@@ -1,0 +1,5 @@
+<resources>
+    <!-- Same tokens as :root in index.html -->
+    <color name="paper">#F5F5F0</color>
+    <color name="signal">#2B44FF</color>
+</resources>

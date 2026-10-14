@@ -16,3 +16,12 @@ node_modules/
 # Local notes
 scratch/
 *.local
+
+# Android app build output (android/)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/.kotlin/
+android/app/src/main/assets/www/
